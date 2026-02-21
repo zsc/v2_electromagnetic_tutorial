@@ -158,11 +158,21 @@ def build() -> dict:
                 unit=" kVp",
                 help_text="这里只做“衰减整体缩放”的教学近似：kVp 越高，等效衰减越小。",
             ),
+            slider(
+                cid=f"{module_id}-py",
+                label="剖线位置 y（像素行）",
+                vmin=0,
+                vmax=n - 1,
+                step=1,
+                value=n // 2,
+                unit="",
+                help_text="用于“剖线曲线”：比较 phantom、BP、FBP 在同一行的强度分布。",
+            ),
             select(
-                cid=f"{module_id}-method",
-                label="重建方法",
-                value="fbp",
-                options=[("bp", "简单反投影（BP）"), ("fbp", "滤波反投影（FBP）")],
+                cid=f"{module_id}-diff",
+                label="差分显示",
+                value="signed",
+                options=[("signed", "FBP - BP（有符号）"), ("abs", "|FBP - BP|（绝对值）")],
             ),
             buttons([(f"{module_id}-reset", "重置参数", "primary")]),
         ]
@@ -192,13 +202,57 @@ def build() -> dict:
     )
 
     fig2 = go.Figure(
+        data=[go.Heatmap(z=recon_bp[2][1], colorscale="Gray", showscale=False)],
+        layout=go.Layout(
+            template="plotly_dark",
+            margin=dict(l=30, r=10, t=40, b=30),
+            title="重建：简单反投影 BP",
+            xaxis=dict(showgrid=False, zeroline=False, visible=False),
+            yaxis=dict(showgrid=False, zeroline=False, visible=False, scaleanchor="x"),
+        ),
+    )
+
+    fig3 = go.Figure(
         data=[go.Heatmap(z=recon_fbp[2][1], colorscale="Gray", showscale=False)],
         layout=go.Layout(
             template="plotly_dark",
             margin=dict(l=30, r=10, t=40, b=30),
-            title="重建结果（示意）",
+            title="重建：滤波反投影 FBP",
             xaxis=dict(showgrid=False, zeroline=False, visible=False),
             yaxis=dict(showgrid=False, zeroline=False, visible=False, scaleanchor="x"),
+        ),
+    )
+
+    # difference (placeholder)
+    diff0 = (np.array(recon_fbp[2][1]) - np.array(recon_bp[2][1])).tolist()
+    fig4 = go.Figure(
+        data=[go.Heatmap(z=diff0, colorscale="RdBu", zmid=0, colorbar=dict(title="Δ"))],
+        layout=go.Layout(
+            template="plotly_dark",
+            margin=dict(l=40, r=10, t=40, b=30),
+            title="差分：FBP - BP（突出边缘/伪影差异）",
+            xaxis=dict(showgrid=False, zeroline=False, visible=False),
+            yaxis=dict(showgrid=False, zeroline=False, visible=False, scaleanchor="x"),
+        ),
+    )
+
+    x_idx = np.arange(n)
+    prof0 = phantom[n // 2, :].astype(float)
+    prof_bp0 = np.array(recon_bp[2][1])[n // 2, :].astype(float)
+    prof_fbp0 = np.array(recon_fbp[2][1])[n // 2, :].astype(float)
+    fig5 = go.Figure(
+        data=[
+            go.Scatter(x=x_idx.tolist(), y=prof0.tolist(), mode="lines", name="phantom", line=dict(color="#ffffff", width=2)),
+            go.Scatter(x=x_idx.tolist(), y=prof_bp0.tolist(), mode="lines", name="BP", line=dict(color="#66d9ef", width=2)),
+            go.Scatter(x=x_idx.tolist(), y=prof_fbp0.tolist(), mode="lines", name="FBP", line=dict(color="#a6e22e", width=2)),
+        ],
+        layout=go.Layout(
+            template="plotly_dark",
+            margin=dict(l=55, r=20, t=40, b=45),
+            title="剖线对比（同一行 y 的强度分布）",
+            xaxis_title="像素 x",
+            yaxis_title="μ（相对）",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         ),
     )
 
@@ -215,7 +269,7 @@ def build() -> dict:
       <summary>引导问题</summary>
       <ol>
         <li><b>预测</b>：把 N_angles 从 30 改到 180，sinogram 会变“密”还是“稀”？重建条纹会如何变化？</li>
-        <li><b>验证</b>：固定 σ，切换 BP 与 FBP。哪一种边缘更清晰？为什么需要“滤波”？</li>
+        <li><b>验证</b>：固定 σ，对比 BP 与 FBP。哪一种边缘更清晰？为什么需要“滤波”？</li>
         <li><b>解释</b>：用“线积分/投影”的语言解释：为什么一个点在 sinogram 上会画出一条正弦样曲线？</li>
         <li><b>拓展</b>：真实 CT 中还有哪些会影响重建质量？（散射、硬化、运动、有限探测器……）</li>
       </ol>
@@ -231,7 +285,7 @@ def build() -> dict:
         "sinograms": sinograms,  # [a][s] -> 2d
         "recon_bp": recon_bp,
         "recon_fbp": recon_fbp,
-        "defaults": {"N": "90", "sigma": "0.02", "kVp": 80, "method": "fbp"},
+        "defaults": {"N": "90", "sigma": "0.02", "kVp": 80, "py": n // 2, "diff": "signed"},
     }
 
     js = rf"""
@@ -243,21 +297,29 @@ def build() -> dict:
         N: root.querySelector("#{module_id}-N"),
         sigma: root.querySelector("#{module_id}-sigma"),
         kVp: root.querySelector("#{module_id}-kVp"),
-        method: root.querySelector("#{module_id}-method"),
+        py: root.querySelector("#{module_id}-py"),
+        diff: root.querySelector("#{module_id}-diff"),
         reset: root.querySelector("#{module_id}-reset"),
       }};
 
       emlabBindValue(root, "{module_id}-kVp", " kVp", 0);
+      emlabBindValue(root, "{module_id}-py", "", 0);
 
       const figP = document.getElementById("fig-{module_id}-0");
       const figS = document.getElementById("fig-{module_id}-1");
-      const figR = document.getElementById("fig-{module_id}-2");
+      const figBP = document.getElementById("fig-{module_id}-2");
+      const figFBP = document.getElementById("fig-{module_id}-3");
+      const figD = document.getElementById("fig-{module_id}-4");
+      const figProf = document.getElementById("fig-{module_id}-5");
 
       const readouts = root.querySelector("#readouts-"+id);
       emlabMakeReadouts(readouts, [
         {{key:"读数：N_angles", id:"{module_id}-ro-N", value:"—"}},
         {{key:"读数：σ", id:"{module_id}-ro-s", value:"—"}},
         {{key:"读数：kVp 映射", id:"{module_id}-ro-k", value:"—"}},
+        {{key:"质量：NRMSE(BP)", id:"{module_id}-ro-bp", value:"—"}},
+        {{key:"质量：NRMSE(FBP)", id:"{module_id}-ro-fbp", value:"—"}},
+        {{key:"剖线 y", id:"{module_id}-ro-y", value:"—"}},
       ]);
 
       function scale2d(z, s){{
@@ -271,11 +333,42 @@ def build() -> dict:
         return out;
       }}
 
+      function diff2d(a, b, mode){{
+        const out = new Array(a.length);
+        for(let i=0;i<a.length;i++){{
+          const ra = a[i], rb = b[i];
+          const r2 = new Array(ra.length);
+          for(let j=0;j<ra.length;j++) {{
+            const d = (rb[j]-ra[j]);
+            r2[j] = (mode === "abs") ? Math.abs(d) : d;
+          }}
+          out[i]=r2;
+        }}
+        return out;
+      }}
+
+      function nrmse(ref, img){{
+        let s = 0, sr = 0, n = 0;
+        for(let i=0;i<ref.length;i++){{
+          const rr = ref[i], ii = img[i];
+          for(let j=0;j<rr.length;j++) {{
+            const d = (ii[j]-rr[j]);
+            s += d*d;
+            sr += rr[j]*rr[j];
+            n += 1;
+          }}
+        }}
+        const rmse = Math.sqrt(s/Math.max(1,n));
+        const r0 = Math.sqrt(sr/Math.max(1,n));
+        return rmse / Math.max(1e-12, r0);
+      }}
+
       function update(){{
         const N = parseInt(els.N.value, 10);
         const sigma = parseFloat(els.sigma.value);
         const kVp = emlabNum(els.kVp.value);
-        const method = els.method.value;
+        const py = Math.max(0, Math.min((data.size||64)-1, Math.round(emlabNum(els.py.value))));
+        const diffMode = els.diff.value;
 
         const aIdx = (data.angles_opts || []).indexOf(N);
         const sIdx = (data.sigma_opts || []).indexOf(sigma);
@@ -285,17 +378,36 @@ def build() -> dict:
 
         const phantom = data.phantom || [];
         const sino = (data.sinograms && data.sinograms[aIdx] && data.sinograms[aIdx][sIdx]) ? data.sinograms[aIdx][sIdx] : [];
-        const recon = (method === "bp")
-            ? ((data.recon_bp && data.recon_bp[aIdx] && data.recon_bp[aIdx][sIdx]) ? data.recon_bp[aIdx][sIdx] : [])
-            : ((data.recon_fbp && data.recon_fbp[aIdx] && data.recon_fbp[aIdx][sIdx]) ? data.recon_fbp[aIdx][sIdx] : []);
+        const bp = (data.recon_bp && data.recon_bp[aIdx] && data.recon_bp[aIdx][sIdx]) ? data.recon_bp[aIdx][sIdx] : [];
+        const fbp = (data.recon_fbp && data.recon_fbp[aIdx] && data.recon_fbp[aIdx][sIdx]) ? data.recon_fbp[aIdx][sIdx] : [];
+        const dimg = diff2d(bp, fbp, diffMode);
 
         Plotly.restyle(figP, {{z:[scale2d(phantom, scale)]}}, [0]);
         Plotly.restyle(figS, {{z:[scale2d(sino, scale)]}}, [0]);
-        Plotly.restyle(figR, {{z:[scale2d(recon, scale)]}}, [0]);
+        Plotly.restyle(figBP, {{z:[scale2d(bp, scale)]}}, [0]);
+        Plotly.restyle(figFBP, {{z:[scale2d(fbp, scale)]}}, [0]);
+        if(diffMode === "abs"){{
+          Plotly.restyle(figD, {{z:[scale2d(dimg, scale)], colorscale:["Viridis"], zmid:[null]}}, [0]);
+        }} else {{
+          Plotly.restyle(figD, {{z:[scale2d(dimg, scale)], colorscale:["RdBu"], zmid:[0]}}, [0]);
+        }}
+
+        // profile line at row py
+        const npx = (data.size||64);
+        const x = Array.from({{length:npx}}, (_,i)=>i);
+        const pRow = phantom[py] || [];
+        const bpRow = bp[py] || [];
+        const fbpRow = fbp[py] || [];
+        Plotly.restyle(figProf, {{x:[x,x,x], y:[pRow.map(v=>v*scale), bpRow.map(v=>v*scale), fbpRow.map(v=>v*scale)]}}, [0,1,2]);
 
         root.querySelector("#{module_id}-ro-N").textContent = N.toString();
         root.querySelector("#{module_id}-ro-s").textContent = sigma.toFixed(2);
         root.querySelector("#{module_id}-ro-k").textContent = "μ×"+emlabFmt(scale, 3)+"（教学近似）";
+        root.querySelector("#{module_id}-ro-y").textContent = py.toString();
+        if(phantom.length && bp.length) {{
+          root.querySelector("#{module_id}-ro-bp").textContent = emlabFmt(nrmse(phantom, bp), 3);
+          root.querySelector("#{module_id}-ro-fbp").textContent = emlabFmt(nrmse(phantom, fbp), 3);
+        }}
       }}
 
       function reset(){{
@@ -323,7 +435,7 @@ def build() -> dict:
         "title": "M03 XCT/CT：投影→正弦图→重建",
         "intro_html": intro_html,
         "controls_html": controls_html,
-        "figures": [fig0, fig1, fig2],
+        "figures": [fig0, fig1, fig2, fig3, fig4, fig5],
         "data_payload": data_payload,
         "js": js,
         "pitfalls_html": pitfalls_html,

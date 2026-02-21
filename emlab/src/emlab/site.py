@@ -275,7 +275,7 @@ TEMPLATE = Template(
       button.btn:active{ transform: translateY(1px); }
       .figgrid{
         display:grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
         gap: 12px;
       }
       .figcard{

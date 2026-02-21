@@ -84,6 +84,29 @@ def build() -> dict:
                 unit=" s",
                 help_text="T_sweep 变小＝扫描更快；同样信号会在屏上“拉伸/压缩”。",
             ),
+            select(
+                cid=f"{module_id}-trig",
+                label="触发（Trigger）",
+                value="free",
+                options=[("free", "未触发：自由运行"), ("trig", "触发：锁定到阈值")],
+                help_text="触发会把每次扫掠的起点对齐到“输入电压跨过阈值”的时刻，使波形稳定。",
+            ),
+            slider(
+                cid=f"{module_id}-Vtrig",
+                label="触发电平 V_trig (V)",
+                vmin=-50,
+                vmax=50,
+                step=0.5,
+                value=0.0,
+                unit=" V",
+            ),
+            select(
+                cid=f"{module_id}-slope",
+                label="触发沿",
+                value="rise",
+                options=[("rise", "上升沿"), ("fall", "下降沿")],
+            ),
+            buttons([(f"{module_id}-play", "播放/暂停（时基滚动）", "primary")]),
             "</div>",
             f'<div id="{module_id}-group-xy" style="display:none">',
             slider(
@@ -168,6 +191,13 @@ def build() -> dict:
         data=[
             go.Scatter(x=[0, 1], y=[0, 0], mode="lines", name="模拟(连续)", line=dict(color="#66d9ef", width=2)),
             go.Scatter(x=[0, 1], y=[0, 0], mode="lines+markers", name="数字(采样/量化)", line=dict(color="#ff6b6b", width=1), marker=dict(size=5)),
+            go.Scatter(
+                x=[0, 1],
+                y=[0, 0],
+                mode="lines",
+                name="触发电平",
+                line=dict(color="rgba(255,255,255,0.55)", width=1, dash="dot"),
+            ),
         ],
         layout=go.Layout(
             template="plotly_dark",
@@ -225,6 +255,9 @@ def build() -> dict:
             "Ay": 15,
             "fy": 20,
             "Ts": 0.10,
+            "trig": "free",
+            "Vtrig": 0.0,
+            "slope": "rise",
             "Ax": 15,
             "fx": 10,
             "phi": 60,
@@ -246,6 +279,10 @@ def build() -> dict:
         Ay: root.querySelector("#{module_id}-Ay"),
         fy: root.querySelector("#{module_id}-fy"),
         Ts: root.querySelector("#{module_id}-Ts"),
+        trig: root.querySelector("#{module_id}-trig"),
+        Vtrig: root.querySelector("#{module_id}-Vtrig"),
+        slope: root.querySelector("#{module_id}-slope"),
+        play: root.querySelector("#{module_id}-play"),
         Ax: root.querySelector("#{module_id}-Ax"),
         fx: root.querySelector("#{module_id}-fx"),
         phi: root.querySelector("#{module_id}-phi"),
@@ -260,6 +297,7 @@ def build() -> dict:
       emlabBindValue(root, "{module_id}-Ay", " V", 1);
       emlabBindValue(root, "{module_id}-fy", " Hz", 1);
       emlabBindValue(root, "{module_id}-Ts", " s", 3);
+      emlabBindValue(root, "{module_id}-Vtrig", " V", 1);
       emlabBindValue(root, "{module_id}-Ax", " V", 1);
       emlabBindValue(root, "{module_id}-fx", " Hz", 1);
       emlabBindValue(root, "{module_id}-phi", "°", 0);
@@ -273,7 +311,10 @@ def build() -> dict:
       emlabMakeReadouts(readouts, [
         {{key:"电子速度 v_e", id:"{module_id}-ro-ve", value:"—"}},
         {{key:"偏转灵敏度 (mm/V)", id:"{module_id}-ro-sens", value:"—"}},
-        {{key:"混叠提示", id:"{module_id}-ro-alias", value:"—"}},
+        {{key:"测量：f（模拟）", id:"{module_id}-ro-fa", value:"—"}},
+        {{key:"测量：f（数字）", id:"{module_id}-ro-fd", value:"—"}},
+        {{key:"测量：y_pp", id:"{module_id}-ro-ypp", value:"—"}},
+        {{key:"混叠/触发提示", id:"{module_id}-ro-alias", value:"—"}},
       ]);
 
       // constants
@@ -287,9 +328,16 @@ def build() -> dict:
       const xs = 0.25;   // screen
       const dPlate = 0.010; // plate gap
 
+      let timer = null;
+      let tOffset = 0.0; // seconds, used for "free-run rolling"
+      function stopRolling(){{
+        if(timer){{ clearInterval(timer); timer = null; }}
+      }}
+
       function showMode(mode){{
         gYT.style.display = (mode === "yt") ? "" : "none";
         gXY.style.display = (mode === "xy") ? "" : "none";
+        if(mode !== "yt") stopRolling();
       }}
 
       function waveY(t, A, f, kind){{
@@ -297,8 +345,62 @@ def build() -> dict:
         if(kind === "sine") return A*Math.sin(w*t);
         if(kind === "square") return A*(Math.sin(w*t) >= 0 ? 1 : -1);
         if(kind === "tri") return (2*A/Math.PI)*Math.asin(Math.sin(w*t));
-        // noise: fixed sample mapped by t in [0,Ts]
         return 0;
+      }}
+
+      function noiseAt(t){{
+        const nb = data.noise || [];
+        if(nb.length < 2) return 0;
+        const fsn = 2500; // Hz (teaching)
+        const idx = Math.floor((t*fsn) % nb.length);
+        return nb[(idx + nb.length) % nb.length] || 0;
+      }}
+
+      function vyAt(t, Ay, fy, wave){{
+        if(wave === "noise") return Ay * noiseAt(t);
+        return waveY(t, Ay, fy, wave);
+      }}
+
+      function findTriggerStart(baseStart, Ts, Ay, fy, wave, level, slope){{
+        const total = 2*Ts;
+        const N = 2400;
+        const dt = total/(N-1);
+        let prev = vyAt(baseStart, Ay, fy, wave) - level;
+        for(let i=1;i<N;i++) {{
+          const tt = baseStart + i*dt;
+          const curr = vyAt(tt, Ay, fy, wave) - level;
+          if(slope === "rise") {{
+            if(prev < 0 && curr >= 0) return tt;
+          }} else {{
+            if(prev > 0 && curr <= 0) return tt;
+          }}
+          prev = curr;
+        }}
+        return baseStart;
+      }}
+
+      function estimateFreq(tSec, y){{
+        if(y.length < 10) return null;
+        let mean = 0;
+        for(let i=0;i<y.length;i++) mean += y[i];
+        mean /= y.length;
+        let last = null;
+        const periods = [];
+        let prev = y[0] - mean;
+        for(let i=1;i<y.length;i++) {{
+          const curr = y[i] - mean;
+          if(prev < 0 && curr >= 0) {{
+            const t0 = tSec[i-1], t1 = tSec[i];
+            const tc = t0 + (t1-t0) * (-prev) / Math.max(1e-12, (curr-prev));
+            if(last !== null) periods.push(tc - last);
+            last = tc;
+          }}
+          prev = curr;
+        }}
+        if(periods.length < 2) return null;
+        periods.sort((a,b)=>a-b);
+        const med = periods[Math.floor(periods.length/2)];
+        return (med > 1e-9) ? (1.0/med) : null;
       }}
 
       function deflectionScale(Vacc){{
@@ -363,21 +465,29 @@ def build() -> dict:
         const wave = els.wave.value;
         const fy = emlabNum(els.fy.value);
         const Ts = Math.max(1e-3, emlabNum(els.Ts.value));
+        const trigMode = els.trig.value;
+        const Vtrig = emlabNum(els.Vtrig.value);
+        const slope = els.slope.value;
+
+        let start = tOffset;
+        if(mode === "yt" && trigMode === "trig") {{
+          start = findTriggerStart(tOffset, Ts, Ay, fy, wave, Vtrig, slope);
+        }}
+
         const N = 1400;
         const t = new Array(N);
         const y = new Array(N);
+        const tSec = new Array(N);
+        let yMin = 1e18, yMax = -1e18;
         for(let i=0;i<N;i++){{
           const tt = Ts * i/(N-1);
           t[i] = 1000*tt;
-          let Vy = 0;
-          if(wave === "noise"){{
-            const nb = data.noise || [];
-            const idx = Math.min(nb.length-1, Math.floor(i*nb.length/N));
-            Vy = Ay * (nb[idx] || 0);
-          }} else {{
-            Vy = waveY(tt, Ay, fy, wave);
-          }}
-          y[i] = 1000 * (yPerV * Vy); // mm
+          tSec[i] = tt;
+          const Vy = vyAt(start + tt, Ay, fy, wave);
+          const yy = 1000 * (yPerV * Vy); // mm
+          y[i] = yy;
+          if(yy < yMin) yMin = yy;
+          if(yy > yMax) yMax = yy;
         }}
 
         // sampled + quantized
@@ -389,21 +499,23 @@ def build() -> dict:
         for(let k=0;;k++){{
           const tt = k / fs;
           if(tt > Ts + 1e-12) break;
-          let Vy = 0;
-          if(wave === "noise"){{
-            const idx = Math.min(N-1, Math.round((tt/Ts)*(N-1)));
-            const nb = data.noise || [];
-            const nbIdx = Math.min(nb.length-1, Math.floor(idx*nb.length/N));
-            Vy = Ay * (nb[nbIdx] || 0);
-          }} else {{
-            Vy = waveY(tt, Ay, fy, wave);
-          }}
+          const Vy = vyAt(start + tt, Ay, fy, wave);
           const q = Math.round((Vy + range)/qStep)*qStep - range;
           tS.push(1000*tt);
           yS.push(1000*(yPerV*q));
         }}
 
-        Plotly.restyle(figYT, {{x:[t, tS], y:[y, yS]}}, [0,1]);
+        const yTrig = 1000*(yPerV*Vtrig);
+        Plotly.restyle(figYT, {{x:[t, tS, [0, 1000*Ts]], y:[y, yS, [yTrig, yTrig]]}}, [0,1,2]);
+
+        // measurements
+        const ypp = yMax - yMin;
+        root.querySelector("#{module_id}-ro-ypp").textContent = emlabFmt(ypp, 2) + " mm";
+        const fA = (wave === "noise") ? null : estimateFreq(tSec, y);
+        root.querySelector("#{module_id}-ro-fa").textContent = (fA && isFinite(fA)) ? (emlabFmt(fA, 2) + " Hz") : "—";
+        const tSd = tS.map(v=>v/1000.0);
+        const fD = (wave === "noise") ? null : estimateFreq(tSd, yS);
+        root.querySelector("#{module_id}-ro-fd").textContent = (fD && isFinite(fD)) ? (emlabFmt(fD, 2) + " Hz") : "—";
 
         // alias hint for sine case
         let aliasText = "—";
@@ -413,6 +525,9 @@ def build() -> dict:
           aliasText = (fs < 2*fy) ? ("可能混叠：f_alias≈"+emlabFmt(fAlias,2)+" Hz") : "满足 f_s≥2f（理想）";
         }} else if(wave !== "sine") {{
           aliasText = "非正弦含高频分量，更易混叠";
+        }}
+        if(mode === "yt") {{
+          aliasText = (trigMode === "trig") ? ("触发锁定｜" + aliasText) : ("自由运行｜" + aliasText);
         }}
         root.querySelector("#{module_id}-ro-alias").textContent = aliasText;
 
@@ -426,12 +541,11 @@ def build() -> dict:
         const xsArr = new Array(Nxy);
         const ysArr = new Array(Nxy);
         const dty = (fy > 1e-9) ? (phi/(2*Math.PI*fy)) : 0; // phase -> time shift for general waveforms
+        const baseXY = tOffset;
         for(let i=0;i<Nxy;i++){{
           const tt = Twin * i/(Nxy-1);
-          const Vx = Ax*Math.sin(2*Math.PI*fx*tt);
-          const Vy = (wave === "noise")
-              ? Ay * ((data.noise && data.noise[i % data.noise.length]) || 0)
-              : waveY(tt + dty, Ay, fy, wave);
+          const Vx = Ax*Math.sin(2*Math.PI*fx*(baseXY + tt));
+          const Vy = vyAt(baseXY + tt + dty, Ay, fy, wave);
           xsArr[i] = 1000*(yPerV * Vx);
           ysArr[i] = 1000*(yPerV * Vy);
         }}
@@ -444,10 +558,8 @@ def build() -> dict:
         for(let k=0;;k++){{
           const tt = k / fs;
           if(tt > Twin + 1e-12) break;
-          const Vx = Ax*Math.sin(2*Math.PI*fx*tt);
-          const Vy = (wave === "noise")
-              ? Ay * ((data.noise && data.noise[k % data.noise.length]) || 0)
-              : waveY(tt + dty, Ay, fy, wave);
+          const Vx = Ax*Math.sin(2*Math.PI*fx*(baseXY + tt));
+          const Vy = vyAt(baseXY + tt + dty, Ay, fy, wave);
           const qx = Math.round((Vx + rangeX)/qStepX)*qStepX - rangeX;
           const qy = Math.round((Vy + range)/qStep)*qStep - range;
           xSd.push(1000*(yPerV*qx));
@@ -456,7 +568,20 @@ def build() -> dict:
         Plotly.restyle(figXY, {{x:[xsArr, xSd], y:[ysArr, ySd]}}, [0,1]);
       }}
 
+      function toggleRolling(){{
+        const mode = els.mode.value;
+        if(mode !== "yt") return;
+        if(timer){{ stopRolling(); return; }}
+        timer = setInterval(() => {{
+          const Ts = Math.max(1e-3, emlabNum(els.Ts.value));
+          tOffset = (tOffset + Ts/40) % 1000.0;
+          update();
+        }}, 60);
+      }}
+
       function reset(){{
+        stopRolling();
+        tOffset = 0.0;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -471,6 +596,7 @@ def build() -> dict:
         const ev = (el.tagName === "SELECT") ? "change" : "input";
         el.addEventListener(ev, update);
       }});
+      els.play.addEventListener("click", toggleRolling);
       els.reset.addEventListener("click", reset);
       update();
     }}

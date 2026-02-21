@@ -93,6 +93,42 @@ def build() -> dict:
         ),
     )
 
+    fig2 = go.Figure(
+        data=[
+            go.Scatter(
+                x=[0, 1],
+                y=[0, 0],
+                mode="lines+markers",
+                name="V ∠0°",
+                line=dict(color="#66d9ef", width=3),
+                marker=dict(size=6),
+            ),
+            go.Scatter(
+                x=[0, 0.8],
+                y=[0, -0.3],
+                mode="lines+markers",
+                name="I ∠-φ",
+                line=dict(color="#a6e22e", width=3),
+                marker=dict(size=6),
+            ),
+            go.Scatter(
+                x=[0, 0.8],
+                y=[0, 0],
+                mode="lines",
+                name="I·cosφ（投影）",
+                line=dict(color="rgba(255,255,255,0.6)", width=2, dash="dot"),
+            ),
+        ],
+        layout=go.Layout(
+            template="plotly_dark",
+            margin=dict(l=55, r=20, t=40, b=45),
+            title="相量图：V 与 I（功率因数 cosφ = 投影/长度）",
+            xaxis=dict(title="Re（相对）", range=[-1.2, 1.2], zeroline=False),
+            yaxis=dict(title="Im（相对）", range=[-1.2, 1.2], scaleanchor="x", zeroline=False),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        ),
+    )
+
     pitfalls_html = """
     <ul>
       <li>“变压器能把直流电压变高/变低”：理想变压器需要交变磁通，因此不能直接变换纯直流（除非用开关电路先变成交流）。</li>
@@ -142,12 +178,16 @@ def build() -> dict:
 
       const figV = document.getElementById("fig-{module_id}-0");
       const figI = document.getElementById("fig-{module_id}-1");
+      const figPh = document.getElementById("fig-{module_id}-2");
 
       const readouts = root.querySelector("#readouts-"+id);
       emlabMakeReadouts(readouts, [
         {{key:"Vs_rms / Is_rms", id:"{module_id}-ro-s", value:"—"}},
         {{key:"功率 P_load", id:"{module_id}-ro-p", value:"—"}},
         {{key:"功率因数 cosφ", id:"{module_id}-ro-pf", value:"—"}},
+        {{key:"相位滞后 φ", id:"{module_id}-ro-phi", value:"—"}},
+        {{key:"视在功率 S", id:"{module_id}-ro-S", value:"—"}},
+        {{key:"无功功率 Q", id:"{module_id}-ro-Q", value:"—"}},
       ]);
 
       function update(){{
@@ -171,10 +211,15 @@ def build() -> dict:
         const Ip = Is*n; // ideal current ratio
         const pf = Math.cos(phi);
         const P = Vs*Is*pf;
+        const S = Vs*Is;
+        const Q = Vs*Is*Math.sin(phi);
 
         root.querySelector("#{module_id}-ro-s").textContent = "Vs≈"+emlabFmt(Vs,2)+"V, Is≈"+emlabFmt(Is,2)+"A";
         root.querySelector("#{module_id}-ro-p").textContent = emlabFmt(P,2)+" W";
         root.querySelector("#{module_id}-ro-pf").textContent = emlabFmt(pf,3);
+        root.querySelector("#{module_id}-ro-phi").textContent = emlabFmt(phi*180/Math.PI,1) + "°";
+        root.querySelector("#{module_id}-ro-S").textContent = emlabFmt(S,2) + " VA";
+        root.querySelector("#{module_id}-ro-Q").textContent = emlabFmt(Q,2) + " var";
 
         // waveforms (one period)
         const T = 1/f;
@@ -200,6 +245,14 @@ def build() -> dict:
 
         Plotly.restyle(figV, {{x:[t,t], y:[vp,vs]}}, [0,1]);
         Plotly.restyle(figI, {{x:[t,t], y:[ip,is]}}, [0,1]);
+
+        // phasor (normalized to unit magnitude)
+        const cx = Math.cos(phi);
+        const sx = Math.sin(phi);
+        Plotly.restyle(figPh, {{
+          x:[[0,1], [0,cx], [0,cx]],
+          y:[[0,0], [0,-sx], [0,0]]
+        }}, [0,1,2]);
 
         // enable/disable L slider by kind
         els.L.disabled = (kind !== "RL");
@@ -230,7 +283,7 @@ def build() -> dict:
         "title": "扩展：变压器（互感与匝数比）",
         "intro_html": intro_html,
         "controls_html": controls_html,
-        "figures": [fig0, fig1],
+        "figures": [fig0, fig1, fig2],
         "data_payload": data_payload,
         "js": js,
         "pitfalls_html": pitfalls_html,
