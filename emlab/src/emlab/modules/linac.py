@@ -65,7 +65,12 @@ def build() -> dict:
                 value="sync",
                 options=[("sync", "同步设计：每段≈v·T/2"), ("fixed", "固定长度：易相位漂移")],
             ),
-            buttons([(f"{module_id}-reset", "重置参数", "primary")]),
+            buttons(
+                [
+                    (f"{module_id}-play", "播放/暂停", "primary"),
+                    (f"{module_id}-reset", "重置参数", ""),
+                ]
+            ),
         ]
     )
 
@@ -133,6 +138,7 @@ def build() -> dict:
         K0: root.querySelector("#{module_id}-K0"),
         phi: root.querySelector("#{module_id}-phi"),
         design: root.querySelector("#{module_id}-design"),
+        play: root.querySelector("#{module_id}-play"),
         reset: root.querySelector("#{module_id}-reset"),
       }};
 
@@ -156,6 +162,34 @@ def build() -> dict:
       const c = 299792458;
       const nStage = data.n_stage || 14;
       const gap = data.gap_m || 0.01;
+
+      let timer = null;
+      let dir = 1;
+      function stopPlay(){{ if(timer){{ clearInterval(timer); timer=null; }} }}
+      function tick(){{
+        const el = els.phi;
+        if(!el) return;
+        const vmin = emlabNum(el.min);
+        const vmax = emlabNum(el.max);
+        const step = Math.max(1e-12, emlabNum(el.step || 1));
+        let v = emlabNum(el.value);
+        v += dir*step*2;
+        if(v >= vmax){{ v=vmax; dir=-1; }}
+        if(v <= vmin){{ v=vmin; dir=1; }}
+        const n = Math.round((v-vmin)/step);
+        v = vmin + n*step;
+        v = Math.max(vmin, Math.min(vmax, v));
+        el.value = v.toString();
+      }}
+      function togglePlay(){{
+        if(timer){{ stopPlay(); return; }}
+        timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stopPlay(); return; }}
+          tick();
+          emlabRefreshBoundValues(root);
+          update();
+        }}, 160);
+      }}
 
       function vFromK(KJ){{
         // non-rel for teaching; clamp below c
@@ -222,6 +256,8 @@ def build() -> dict:
       }}
 
       function reset(){{
+        stopPlay();
+        dir = 1;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -236,6 +272,7 @@ def build() -> dict:
         const ev = (el.tagName === "SELECT") ? "change" : "input";
         el.addEventListener(ev, update);
       }});
+      els.play.addEventListener("click", togglePlay);
       els.reset.addEventListener("click", reset);
       update();
     }}

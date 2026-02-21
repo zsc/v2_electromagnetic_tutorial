@@ -77,7 +77,12 @@ def build() -> dict:
                 unit="×",
                 help_text=">1 表示像差/不完美更明显（仅用于教学展示）。",
             ),
-            buttons([(f"{module_id}-reset", "重置参数", "primary")]),
+            buttons(
+                [
+                    (f"{module_id}-play", "播放/暂停", "primary"),
+                    (f"{module_id}-reset", "重置参数", ""),
+                ]
+            ),
         ]
     )
 
@@ -156,6 +161,7 @@ def build() -> dict:
         I: root.querySelector("#{module_id}-I"),
         div: root.querySelector("#{module_id}-div"),
         quality: root.querySelector("#{module_id}-quality"),
+        play: root.querySelector("#{module_id}-play"),
         reset: root.querySelector("#{module_id}-reset"),
       }};
 
@@ -173,6 +179,34 @@ def build() -> dict:
         {{key:"束斑半径（屏上，mm）", id:"{module_id}-ro-spot", value:"—"}},
         {{key:"焦距 f（教学量）", id:"{module_id}-ro-f", value:"—"}},
       ]);
+
+      let timer = null;
+      let dir = 1;
+      function stopPlay(){{ if(timer){{ clearInterval(timer); timer=null; }} }}
+      function tick(){{
+        const el = els.I;
+        if(!el) return;
+        const vmin = emlabNum(el.min);
+        const vmax = emlabNum(el.max);
+        const step = Math.max(1e-12, emlabNum(el.step || 1));
+        let v = emlabNum(el.value);
+        v += dir*step*5;
+        if(v >= vmax){{ v=vmax; dir=-1; }}
+        if(v <= vmin){{ v=vmin; dir=1; }}
+        const n = Math.round((v-vmin)/step);
+        v = vmin + n*step;
+        v = Math.max(vmin, Math.min(vmax, v));
+        el.value = v.toString();
+      }}
+      function togglePlay(){{
+        if(timer){{ stopPlay(); return; }}
+        timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stopPlay(); return; }}
+          tick();
+          emlabRefreshBoundValues(root);
+          update();
+        }}, 140);
+      }}
 
       function lambdaPm(V){{
         const e = 1.602176634e-19;
@@ -227,6 +261,8 @@ def build() -> dict:
       }}
 
       function reset(){{
+        stopPlay();
+        dir = 1;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -240,6 +276,7 @@ def build() -> dict:
         if(!el) return;
         el.addEventListener("input", update);
       }});
+      els.play.addEventListener("click", togglePlay);
       els.reset.addEventListener("click", reset);
       update();
     }}

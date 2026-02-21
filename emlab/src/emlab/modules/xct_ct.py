@@ -174,7 +174,12 @@ def build() -> dict:
                 value="signed",
                 options=[("signed", "FBP - BP（有符号）"), ("abs", "|FBP - BP|（绝对值）")],
             ),
-            buttons([(f"{module_id}-reset", "重置参数", "primary")]),
+            buttons(
+                [
+                    (f"{module_id}-play", "播放/暂停", "primary"),
+                    (f"{module_id}-reset", "重置参数", ""),
+                ]
+            ),
         ]
     )
 
@@ -299,6 +304,7 @@ def build() -> dict:
         kVp: root.querySelector("#{module_id}-kVp"),
         py: root.querySelector("#{module_id}-py"),
         diff: root.querySelector("#{module_id}-diff"),
+        play: root.querySelector("#{module_id}-play"),
         reset: root.querySelector("#{module_id}-reset"),
       }};
 
@@ -363,6 +369,30 @@ def build() -> dict:
         return rmse / Math.max(1e-12, r0);
       }}
 
+      let timer = null;
+      let dir = 1;
+      function stopPlay(){{ if(timer){{ clearInterval(timer); timer=null; }} }}
+      function tick(){{
+        const el = els.py;
+        if(!el) return;
+        const vmin = emlabNum(el.min);
+        const vmax = emlabNum(el.max);
+        let v = Math.round(emlabNum(el.value));
+        v += dir;
+        if(v >= vmax){{ v=vmax; dir=-1; }}
+        if(v <= vmin){{ v=vmin; dir=1; }}
+        el.value = v.toString();
+      }}
+      function togglePlay(){{
+        if(timer){{ stopPlay(); return; }}
+        timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stopPlay(); return; }}
+          tick();
+          emlabRefreshBoundValues(root);
+          update();
+        }}, 120);
+      }}
+
       function update(){{
         const N = parseInt(els.N.value, 10);
         const sigma = parseFloat(els.sigma.value);
@@ -411,6 +441,8 @@ def build() -> dict:
       }}
 
       function reset(){{
+        stopPlay();
+        dir = 1;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -425,6 +457,7 @@ def build() -> dict:
         const ev = (el.tagName === "SELECT") ? "change" : "input";
         el.addEventListener(ev, update);
       }});
+      els.play.addEventListener("click", togglePlay);
       els.reset.addEventListener("click", reset);
       update();
     }}

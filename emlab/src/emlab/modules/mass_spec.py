@@ -80,7 +80,12 @@ def build() -> dict:
                 value="Ne+",
                 options=[("none", "不显示")] + [(k, k) for k, _ in species],
             ),
-            buttons([(f"{module_id}-reset", "重置参数", "primary")]),
+            buttons(
+                [
+                    (f"{module_id}-play", "播放/暂停", "primary"),
+                    (f"{module_id}-reset", "重置参数", ""),
+                ]
+            ),
         ]
     )
 
@@ -163,6 +168,7 @@ def build() -> dict:
         E: root.querySelector("#{module_id}-E"),
         sp1: root.querySelector("#{module_id}-sp1"),
         sp2: root.querySelector("#{module_id}-sp2"),
+        play: root.querySelector("#{module_id}-play"),
         reset: root.querySelector("#{module_id}-reset"),
       }};
 
@@ -183,6 +189,34 @@ def build() -> dict:
       const sp = data.species || {{}};
       const xDet = data.x_det || 0.15;
       const uoe = data.u_over_e_kg_per_C || 1.0;
+
+      let timer = null;
+      let dir = 1;
+      function stopPlay(){{ if(timer){{ clearInterval(timer); timer=null; }} }}
+      function tick(){{
+        const el = els.B;
+        if(!el) return;
+        const vmin = emlabNum(el.min);
+        const vmax = emlabNum(el.max);
+        const step = Math.max(1e-12, emlabNum(el.step || 1));
+        let v = emlabNum(el.value);
+        v += dir*step*8;
+        if(v >= vmax){{ v=vmax; dir=-1; }}
+        if(v <= vmin){{ v=vmin; dir=1; }}
+        const n = Math.round((v-vmin)/step);
+        v = vmin + n*step;
+        v = Math.max(vmin, Math.min(vmax, v));
+        el.value = v.toString();
+      }}
+      function togglePlay(){{
+        if(timer){{ stopPlay(); return; }}
+        timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stopPlay(); return; }}
+          tick();
+          emlabRefreshBoundValues(root);
+          update();
+        }}, 140);
+      }}
 
       function moq_kgC(label){{
         const v = sp[label];
@@ -284,6 +318,8 @@ def build() -> dict:
       }}
 
       function reset(){{
+        stopPlay();
+        dir = 1;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -298,6 +334,7 @@ def build() -> dict:
         const ev = (el.tagName === "SELECT") ? "change" : "input";
         el.addEventListener(ev, update);
       }});
+      els.play.addEventListener("click", togglePlay);
       els.reset.addEventListener("click", reset);
       update();
     }}

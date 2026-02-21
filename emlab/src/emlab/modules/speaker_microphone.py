@@ -78,7 +78,12 @@ def build() -> dict:
             slider(cid=f"{module_id}-m", label="振动质量 m (g)", vmin=1.0, vmax=60.0, step=1.0, value=12.0, unit=" g"),
             slider(cid=f"{module_id}-k", label="弹性系数 k (N/m)", vmin=10.0, vmax=2000.0, step=10.0, value=400.0, unit=" N/m"),
             slider(cid=f"{module_id}-b", label="阻尼 b (N·s/m)", vmin=0.0, vmax=2.0, step=0.02, value=0.25, unit=""),
-            buttons([(f"{module_id}-reset", "重置参数", "primary")]),
+            buttons(
+                [
+                    (f"{module_id}-play", "播放/暂停", "primary"),
+                    (f"{module_id}-reset", "重置参数", ""),
+                ]
+            ),
         ]
     )
 
@@ -166,6 +171,7 @@ def build() -> dict:
         m: root.querySelector("#{module_id}-m"),
         k: root.querySelector("#{module_id}-k"),
         b: root.querySelector("#{module_id}-b"),
+        play: root.querySelector("#{module_id}-play"),
         reset: root.querySelector("#{module_id}-reset"),
       }};
 
@@ -206,6 +212,34 @@ def build() -> dict:
       function cdiv(a,b){{ const d=b.re*b.re+b.im*b.im; return c((a.re*b.re+a.im*b.im)/d, (a.im*b.re-a.re*b.im)/d); }}
       function cabs(a){{ return Math.hypot(a.re, a.im); }}
       function carg(a){{ return Math.atan2(a.im, a.re); }}
+
+      let timer = null;
+      let dir = 1;
+      function stopPlay(){{ if(timer){{ clearInterval(timer); timer=null; }} }}
+      function tick(){{
+        const el = els.f;
+        if(!el) return;
+        const vmin = emlabNum(el.min);
+        const vmax = emlabNum(el.max);
+        const step = Math.max(1e-12, emlabNum(el.step || 1));
+        let v = emlabNum(el.value);
+        const factor = 1.04;
+        v = (dir > 0) ? (v*factor) : (v/factor);
+        if(v >= vmax){{ v=vmax; dir=-1; }}
+        if(v <= vmin){{ v=vmin; dir=1; }}
+        v = vmin + Math.round((v-vmin)/step)*step;
+        v = Math.max(vmin, Math.min(vmax, v));
+        el.value = v.toString();
+      }}
+      function togglePlay(){{
+        if(timer){{ stopPlay(); return; }}
+        timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stopPlay(); return; }}
+          tick();
+          emlabRefreshBoundValues(root);
+          update();
+        }}, 160);
+      }}
 
       function update(){{
         const mode = els.mode.value;
@@ -330,6 +364,8 @@ def build() -> dict:
       }}
 
       function reset(){{
+        stopPlay();
+        dir = 1;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -344,6 +380,7 @@ def build() -> dict:
         const ev = (el.tagName === "SELECT") ? "change" : "input";
         el.addEventListener(ev, update);
       }});
+      els.play.addEventListener("click", togglePlay);
       els.reset.addEventListener("click", reset);
       update();
     }}

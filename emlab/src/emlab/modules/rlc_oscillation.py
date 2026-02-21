@@ -21,7 +21,12 @@ def build() -> dict:
             slider(cid=f"{module_id}-R", label="电阻 R (Ω)", vmin=0.0, vmax=50.0, step=0.2, value=4.0, unit=" Ω"),
             slider(cid=f"{module_id}-L", label="电感 L (mH)", vmin=1.0, vmax=200.0, step=1.0, value=40.0, unit=" mH"),
             slider(cid=f"{module_id}-C", label="电容 C (mF)", vmin=0.1, vmax=10.0, step=0.1, value=2.0, unit=" mF"),
-            buttons([(f"{module_id}-reset", "重置参数", "primary")]),
+            buttons(
+                [
+                    (f"{module_id}-play", "播放/暂停", "primary"),
+                    (f"{module_id}-reset", "重置参数", ""),
+                ]
+            ),
         ]
     )
 
@@ -88,6 +93,7 @@ def build() -> dict:
         R: root.querySelector("#{module_id}-R"),
         L: root.querySelector("#{module_id}-L"),
         C: root.querySelector("#{module_id}-C"),
+        play: root.querySelector("#{module_id}-play"),
         reset: root.querySelector("#{module_id}-reset"),
       }};
 
@@ -105,6 +111,34 @@ def build() -> dict:
         {{key:"Q（近似）", id:"{module_id}-ro-q", value:"—"}},
         {{key:"阻尼类型", id:"{module_id}-ro-reg", value:"—"}},
       ]);
+
+      let timer = null;
+      let dir = 1;
+      function stopPlay(){{ if(timer){{ clearInterval(timer); timer=null; }} }}
+      function tick(){{
+        const el = els.R;
+        if(!el) return;
+        const vmin = emlabNum(el.min);
+        const vmax = emlabNum(el.max);
+        const step = Math.max(1e-12, emlabNum(el.step || 1));
+        let v = emlabNum(el.value);
+        v += dir*step*5;
+        if(v >= vmax){{ v=vmax; dir=-1; }}
+        if(v <= vmin){{ v=vmin; dir=1; }}
+        const n = Math.round((v-vmin)/step);
+        v = vmin + n*step;
+        v = Math.max(vmin, Math.min(vmax, v));
+        el.value = v.toString();
+      }}
+      function togglePlay(){{
+        if(timer){{ stopPlay(); return; }}
+        timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stopPlay(); return; }}
+          tick();
+          emlabRefreshBoundValues(root);
+          update();
+        }}, 200);
+      }}
 
       function update(){{
         const V0 = emlabNum(els.V0.value);
@@ -181,6 +215,8 @@ def build() -> dict:
       }}
 
       function reset(){{
+        stopPlay();
+        dir = 1;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -194,6 +230,7 @@ def build() -> dict:
         if(!el) return;
         el.addEventListener("input", update);
       }});
+      els.play.addEventListener("click", togglePlay);
       els.reset.addEventListener("click", reset);
       update();
     }}

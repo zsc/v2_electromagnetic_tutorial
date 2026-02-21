@@ -59,7 +59,12 @@ def build() -> dict:
                 unit=" H",
                 help_text="仅 RL 模式生效；L 越大，电流滞后越明显，功率因数越小。",
             ),
-            buttons([(f"{module_id}-reset", "重置参数", "primary")]),
+            buttons(
+                [
+                    (f"{module_id}-play", "播放/暂停", "primary"),
+                    (f"{module_id}-reset", "重置参数", ""),
+                ]
+            ),
         ]
     )
 
@@ -166,6 +171,7 @@ def build() -> dict:
         load: root.querySelector("#{module_id}-load"),
         R: root.querySelector("#{module_id}-R"),
         L: root.querySelector("#{module_id}-L"),
+        play: root.querySelector("#{module_id}-play"),
         reset: root.querySelector("#{module_id}-reset"),
       }};
 
@@ -189,6 +195,35 @@ def build() -> dict:
         {{key:"视在功率 S", id:"{module_id}-ro-S", value:"—"}},
         {{key:"无功功率 Q", id:"{module_id}-ro-Q", value:"—"}},
       ]);
+
+      let timer = null;
+      let dir = 1;
+      function stopPlay(){{ if(timer){{ clearInterval(timer); timer=null; }} }}
+      function tick(){{
+        const target = (els.load.value === "RL") ? els.L : els.R;
+        if(!target) return;
+        const vmin = emlabNum(target.min);
+        const vmax = emlabNum(target.max);
+        const step = Math.max(1e-12, emlabNum(target.step || 1));
+        let v = emlabNum(target.value);
+        const mul = (target === els.L) ? 4 : 2;
+        v += dir*step*mul;
+        if(v >= vmax){{ v=vmax; dir=-1; }}
+        if(v <= vmin){{ v=vmin; dir=1; }}
+        const n = Math.round((v-vmin)/step);
+        v = vmin + n*step;
+        v = Math.max(vmin, Math.min(vmax, v));
+        target.value = v.toString();
+      }}
+      function togglePlay(){{
+        if(timer){{ stopPlay(); return; }}
+        timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stopPlay(); return; }}
+          tick();
+          emlabRefreshBoundValues(root);
+          update();
+        }}, 160);
+      }}
 
       function update(){{
         const Np = Math.max(1, Math.round(emlabNum(els.Np.value)));
@@ -259,6 +294,8 @@ def build() -> dict:
       }}
 
       function reset(){{
+        stopPlay();
+        dir = 1;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -273,6 +310,7 @@ def build() -> dict:
         const ev = (el.tagName === "SELECT") ? "change" : "input";
         el.addEventListener(ev, update);
       }});
+      els.play.addEventListener("click", togglePlay);
       els.reset.addEventListener("click", reset);
       update();
     }}
