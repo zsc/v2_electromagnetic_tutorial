@@ -19,7 +19,6 @@ from emlab.modules import (
     induction_heating,
     linac,
     mass_spec,
-    pendulum,
     rail_launcher,
     rlc_oscillation,
     speaker_microphone,
@@ -538,7 +537,6 @@ def build_site(*, mode: str = "release", no_ct: bool = False) -> str:
     }
 
     module_builders: list[Callable[[], dict[str, Any]]] = [
-        pendulum.build,
         crt_scope.build,
         xct_ct.build,
         ac_motor.build,

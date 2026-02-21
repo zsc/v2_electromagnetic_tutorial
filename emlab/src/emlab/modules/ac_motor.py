@@ -91,12 +91,43 @@ def build() -> dict:
         data=[
             go.Scatter(x=[0, 1], y=[0, 0], mode="lines", name="端点轨迹", line=dict(color="#66d9ef", width=2)),
             go.Scatter(x=[0, 0.5], y=[0, 0.2], mode="lines", name="合成磁场矢量", line=dict(color="#a6e22e", width=3)),
-            go.Scatter(x=[0.5], y=[0.2], mode="markers", name="当前端点", marker=dict(size=10, color="#ff6b6b")),
+            go.Scatter(
+                x=[0.5],
+                y=[0.2],
+                mode="markers",
+                name="当前端点",
+                marker=dict(size=10, color="#ff6b6b"),
+                showlegend=False,
+            ),
+            go.Scatter(
+                x=[0, 0],
+                y=[0, 0],
+                mode="lines",
+                name="相 A 分量（stick）",
+                line=dict(color="#66d9ef", width=2, dash="dash"),
+                opacity=0.9,
+            ),
+            go.Scatter(
+                x=[0, 0],
+                y=[0, 0],
+                mode="lines",
+                name="相 B 分量（stick）",
+                line=dict(color="#ffd166", width=2, dash="dash"),
+                opacity=0.9,
+            ),
+            go.Scatter(
+                x=[0, 0],
+                y=[0, 0],
+                mode="lines",
+                name="相 C 分量（stick）",
+                line=dict(color="#ff6b6b", width=2, dash="dash"),
+                opacity=0.9,
+            ),
         ],
         layout=go.Layout(
             template="plotly_dark",
             margin=dict(l=50, r=20, t=40, b=45),
-            title="合成磁场矢量：端点轨迹（单相=线段，三相≈圆）",
+            title="旋转磁场：相分量(stick)叠加 → 合成矢量端点轨迹",
             xaxis_title="B_x (arb.)",
             yaxis_title="B_y (arb.)",
             xaxis=dict(scaleanchor="y", scaleratio=1),
@@ -235,10 +266,32 @@ def build() -> dict:
         const idx = Math.max(0, Math.min(s.t.length-1, Math.round(t0*(s.t.length-1))));
 
         // vector plot
+        let ax=0, ay=0, bx=0, by=0, cx=0, cy=0;
+        let vA=true, vB=false, vC=false;
+        if(mode === "three"){{
+          const u0 = [1,0];
+          const u1 = [Math.cos(2*Math.PI/3), Math.sin(2*Math.PI/3)];
+          const u2 = [Math.cos(4*Math.PI/3), Math.sin(4*Math.PI/3)];
+          ax = s.ia[idx]*u0[0]; ay = s.ia[idx]*u0[1];
+          bx = s.ib[idx]*u1[0]; by = s.ib[idx]*u1[1];
+          cx = s.ic[idx]*u2[0]; cy = s.ic[idx]*u2[1];
+          vA = true; vB = true; vC = true;
+        }} else if(mode === "cap"){{
+          ax = s.ia[idx]; ay = 0;
+          bx = 0; by = s.ib[idx];
+          cx = 0; cy = 0;
+          vA = true; vB = true; vC = false;
+        }} else {{
+          ax = s.ia[idx]; ay = 0;
+          bx = 0; by = 0;
+          cx = 0; cy = 0;
+          vA = true; vB = false; vC = false;
+        }}
         Plotly.restyle(figVec, {{
-          x:[s.bx, [0, s.bx[idx]], [s.bx[idx]]],
-          y:[s.by, [0, s.by[idx]], [s.by[idx]]]
-        }}, [0,1,2]);
+          x:[s.bx, [0, s.bx[idx]], [s.bx[idx]], [0, ax], [0, bx], [0, cx]],
+          y:[s.by, [0, s.by[idx]], [s.by[idx]], [0, ay], [0, by], [0, cy]],
+          visible:[true, true, true, vA, vB, vC]
+        }}, [0,1,2,3,4,5]);
 
         // currents + |B| (use markers + time line to link with vector plot)
         let traces = [];
@@ -255,23 +308,23 @@ def build() -> dict:
         }} else if(mode === "three"){{
           traces = [
             {{x:s.t, y:s.ia, mode:"lines", name:"I_a", line:{{color:"#66d9ef", width:2}}}},
-            {{x:s.t, y:s.ib, mode:"lines", name:"I_b", line:{{color:"#a6e22e", width:2}}}},
+            {{x:s.t, y:s.ib, mode:"lines", name:"I_b", line:{{color:"#ffd166", width:2}}}},
             {{x:s.t, y:s.ic, mode:"lines", name:"I_c", line:{{color:"#ff6b6b", width:2}}}},
           ];
           marks = [
             {{x:[tPick], y:[s.ia[idx]], mode:"markers", marker:{{size:8, color:"#66d9ef"}}, showlegend:false, hoverinfo:"skip"}},
-            {{x:[tPick], y:[s.ib[idx]], mode:"markers", marker:{{size:8, color:"#a6e22e"}}, showlegend:false, hoverinfo:"skip"}},
+            {{x:[tPick], y:[s.ib[idx]], mode:"markers", marker:{{size:8, color:"#ffd166"}}, showlegend:false, hoverinfo:"skip"}},
             {{x:[tPick], y:[s.ic[idx]], mode:"markers", marker:{{size:8, color:"#ff6b6b"}}, showlegend:false, hoverinfo:"skip"}},
           ];
-          root.querySelector("#{module_id}-ro-tip").textContent = "三相：端点近圆周，|B| 近恒定。";
+          root.querySelector("#{module_id}-ro-tip").textContent = "三相：三根绕组轴固定；各相 stick 在各自轴上随电流变长/变短，合成矢量端点旋转。";
         }} else {{
           traces = [
             {{x:s.t, y:s.ia, mode:"lines", name:"I_main", line:{{color:"#66d9ef", width:2}}}},
-            {{x:s.t, y:s.ib, mode:"lines", name:"I_aux", line:{{color:"#a6e22e", width:2}}}},
+            {{x:s.t, y:s.ib, mode:"lines", name:"I_aux", line:{{color:"#ffd166", width:2}}}},
           ];
           marks = [
             {{x:[tPick], y:[s.ia[idx]], mode:"markers", marker:{{size:8, color:"#66d9ef"}}, showlegend:false, hoverinfo:"skip"}},
-            {{x:[tPick], y:[s.ib[idx]], mode:"markers", marker:{{size:8, color:"#a6e22e"}}, showlegend:false, hoverinfo:"skip"}},
+            {{x:[tPick], y:[s.ib[idx]], mode:"markers", marker:{{size:8, color:"#ffd166"}}, showlegend:false, hoverinfo:"skip"}},
           ];
           root.querySelector("#{module_id}-ro-tip").textContent = "电容相移：端点椭圆（相位差越接近 90°越接近圆）。";
         }}

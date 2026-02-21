@@ -94,6 +94,10 @@ def build() -> dict:
       直观理解：角度越多，重建越接近原图；角度太少会产生条纹伪影。
     </p>
     <p>
+      点击“旋转采集/暂停”可以看到：采集角度 θ 逐步变化；phantom 上的“当前投影角度”指示线随之旋转，
+      sinogram 上的竖线指示当前采集到哪一列投影。
+    </p>
+    <p>
       本页面用简化模型演示：phantom → Radon 投影 → sinogram → 反投影/滤波反投影(FBP) 重建。
       为保证离线交互性能，重建结果在 Python 端对离散参数做了预计算。
       你可以把它理解为：<b>sinogram 就是 Radon 变换的输出</b>；<b>BP</b> 是把每个角度的投影“沿着该角度铺回去”（反投影/伴随算子）；
@@ -178,7 +182,7 @@ def build() -> dict:
             ),
             buttons(
                 [
-                    (f"{module_id}-play", "播放/暂停", "primary"),
+                    (f"{module_id}-play", "旋转采集/暂停", "primary"),
                     (f"{module_id}-reset", "重置参数", ""),
                 ]
             ),
@@ -263,6 +267,27 @@ def build() -> dict:
         ),
     )
 
+    proj0 = np.array(sinograms[2][1], dtype=float)[:, 0]
+    fig6 = go.Figure(
+        data=[
+            go.Scatter(
+                x=x_idx.tolist(),
+                y=proj0.tolist(),
+                mode="lines",
+                name="p(s)（当前投影）",
+                line=dict(color="#ffd166", width=2),
+            )
+        ],
+        layout=go.Layout(
+            template="plotly_dark",
+            margin=dict(l=55, r=20, t=40, b=45),
+            title="当前角度的一条投影 p(s)（对应 sinogram 的一列）",
+            xaxis_title="探测器索引 s",
+            yaxis_title="∫μds（相对）",
+            showlegend=False,
+        ),
+    )
+
     pitfalls_html = """
     <ul>
       <li>“CT 就是把很多张照片叠加”：不对。CT 的核心是 <b>投影数据</b> 与 <b>数学重建</b>（Radon 变换思想）。</li>
@@ -319,6 +344,7 @@ def build() -> dict:
       const figFBP = document.getElementById("fig-{module_id}-3");
       const figD = document.getElementById("fig-{module_id}-4");
       const figProf = document.getElementById("fig-{module_id}-5");
+      const figProj = document.getElementById("fig-{module_id}-6");
 
       const readouts = root.querySelector("#readouts-"+id);
       emlabMakeReadouts(readouts, [
@@ -328,6 +354,8 @@ def build() -> dict:
         {{key:"质量：NRMSE(BP)", id:"{module_id}-ro-bp", value:"—"}},
         {{key:"质量：NRMSE(FBP)", id:"{module_id}-ro-fbp", value:"—"}},
         {{key:"剖线 y", id:"{module_id}-ro-y", value:"—"}},
+        {{key:"动画：角度索引 k", id:"{module_id}-ro-ki", value:"—"}},
+        {{key:"动画：角度 θ", id:"{module_id}-ro-th", value:"—"}},
       ]);
 
       function scale2d(z, s){{
@@ -372,27 +400,69 @@ def build() -> dict:
       }}
 
       let timer = null;
-      let dir = 1;
+      let scanIdx = 0;
+      let scanN = 0;
+      let cachedSino = null;
+      let cachedScale = 1.0;
       function stopPlay(){{ if(timer){{ clearInterval(timer); timer=null; }} }}
-      function tick(){{
-        const el = els.py;
-        if(!el) return;
-        const vmin = emlabNum(el.min);
-        const vmax = emlabNum(el.max);
-        let v = Math.round(emlabNum(el.value));
-        v += dir;
-        if(v >= vmax){{ v=vmax; dir=-1; }}
-        if(v <= vmin){{ v=vmin; dir=1; }}
-        el.value = v.toString();
+
+      function updateScan(){{
+        if(!cachedSino || !cachedSino.length) return;
+        const nDet = cachedSino.length;
+        const nAng = (cachedSino[0]||[]).length;
+        scanN = nAng;
+        if(nAng <= 0) return;
+        scanIdx = ((scanIdx % nAng) + nAng) % nAng;
+
+        const th = Math.PI * (scanIdx / nAng);
+        const thDeg = 180.0 * (scanIdx / nAng);
+        const npx = (data.size||64);
+        const cx = 0.5*(npx-1);
+        const cy = 0.5*(npx-1);
+        const L = 0.95*npx;
+        const x0 = cx - L*Math.cos(th);
+        const y0 = cy - L*Math.sin(th);
+        const x1 = cx + L*Math.cos(th);
+        const y1 = cy + L*Math.sin(th);
+
+        Plotly.relayout(figP, {{
+          shapes: [{{
+            type:"line",
+            xref:"x", yref:"y",
+            x0:x0, y0:y0,
+            x1:x1, y1:y1,
+            line:{{color:"rgba(255,255,255,0.75)", width:2}}
+          }}]
+        }});
+        Plotly.relayout(figS, {{
+          shapes: [{{
+            type:"line",
+            xref:"x", yref:"paper",
+            x0:scanIdx, x1:scanIdx,
+            y0:0, y1:1,
+            line:{{color:"rgba(255,255,255,0.55)", width:1.5, dash:"dot"}}
+          }}]
+        }});
+
+        if(figProj){{
+          const proj = new Array(nDet);
+          for(let i=0;i<nDet;i++) proj[i] = (cachedSino[i][scanIdx]||0)*cachedScale;
+          const x = Array.from({{length:nDet}}, (_,i)=>i);
+          Plotly.restyle(figProj, {{x:[x], y:[proj]}}, [0]);
+        }}
+
+        root.querySelector("#{module_id}-ro-ki").textContent = scanIdx.toString()+"/"+Math.max(1,scanN).toString();
+        root.querySelector("#{module_id}-ro-th").textContent = emlabFmt(thDeg, 1) + "°";
       }}
+
       function togglePlay(){{
         if(timer){{ stopPlay(); return; }}
         timer = setInterval(() => {{
           if(!root.classList.contains("active")) {{ stopPlay(); return; }}
-          tick();
-          emlabRefreshBoundValues(root);
-          update();
-        }}, 120);
+          if(scanN <= 0) scanN = 1;
+          scanIdx = (scanIdx + 1) % scanN;
+          updateScan();
+        }}, 80);
       }}
 
       function update(){{
@@ -413,6 +483,13 @@ def build() -> dict:
         const bp = (data.recon_bp && data.recon_bp[aIdx] && data.recon_bp[aIdx][sIdx]) ? data.recon_bp[aIdx][sIdx] : [];
         const fbp = (data.recon_fbp && data.recon_fbp[aIdx] && data.recon_fbp[aIdx][sIdx]) ? data.recon_fbp[aIdx][sIdx] : [];
         const dimg = diff2d(bp, fbp, diffMode);
+
+        cachedSino = sino;
+        cachedScale = scale;
+        if(cachedSino && cachedSino.length && (cachedSino[0]||[]).length){{
+          scanN = (cachedSino[0]||[]).length;
+          if(scanIdx >= scanN) scanIdx = 0;
+        }}
 
         Plotly.restyle(figP, {{z:[scale2d(phantom, scale)]}}, [0]);
         Plotly.restyle(figS, {{z:[scale2d(sino, scale)]}}, [0]);
@@ -440,11 +517,13 @@ def build() -> dict:
           root.querySelector("#{module_id}-ro-bp").textContent = emlabFmt(nrmse(phantom, bp), 3);
           root.querySelector("#{module_id}-ro-fbp").textContent = emlabFmt(nrmse(phantom, fbp), 3);
         }}
+
+        updateScan();
       }}
 
       function reset(){{
         stopPlay();
-        dir = 1;
+        scanIdx = 0;
         const d = data.defaults || {{}};
         Object.keys(d).forEach(k => {{
           const el = root.querySelector("#{module_id}-"+k);
@@ -461,6 +540,17 @@ def build() -> dict:
       }});
       els.play.addEventListener("click", togglePlay);
       els.reset.addEventListener("click", reset);
+      if(figS && figS.on && !figS.dataset.emlabPick){{
+        figS.dataset.emlabPick = "1";
+        figS.on("plotly_click", (ev) => {{
+          if(!ev || !ev.points || !ev.points.length) return;
+          const x = ev.points[0].x;
+          if(!isFinite(x)) return;
+          if(scanN <= 0) return;
+          scanIdx = Math.max(0, Math.min(scanN-1, Math.round(x)));
+          updateScan();
+        }});
+      }}
       update();
     }}
     """
@@ -470,7 +560,7 @@ def build() -> dict:
         "title": "M03 XCT/CT：投影→正弦图→重建",
         "intro_html": intro_html,
         "controls_html": controls_html,
-        "figures": [fig0, fig1, fig2, fig3, fig4, fig5],
+        "figures": [fig0, fig1, fig2, fig3, fig4, fig5, fig6],
         "data_payload": data_payload,
         "js": js,
         "pitfalls_html": pitfalls_html,

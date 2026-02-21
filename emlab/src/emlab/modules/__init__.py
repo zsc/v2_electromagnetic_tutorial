@@ -1,5 +1,4 @@
 __all__ = [
-    "pendulum",
     "crt_scope",
     "xct_ct",
     "ac_motor",
@@ -15,4 +14,3 @@ __all__ = [
     "speaker_microphone",
     "induction_heating",
 ]
-
