@@ -223,6 +223,8 @@ def build() -> dict:
 
       function update(){{
         const mode = els.mode.value;
+        els.phi.disabled = (mode !== "cap");
+        els.ratio.disabled = (mode !== "cap");
         const f = emlabNum(els.f.value);
         const I0 = emlabNum(els.I0.value);
         const phi = emlabNum(els.phi.value);
@@ -298,6 +300,7 @@ def build() -> dict:
           const el = root.querySelector("#{module_id}-"+k);
           if(el) el.value = d[k];
         }});
+        emlabRefreshBoundValues(root);
         update();
       }}
 
@@ -323,4 +326,3 @@ def build() -> dict:
         "pitfalls_html": pitfalls_html,
         "questions_html": questions_html,
     }
-

@@ -232,6 +232,7 @@ def build() -> dict:
           const el = root.querySelector("#{module_id}-"+k);
           if(el) el.value = d[k];
         }});
+        emlabRefreshBoundValues(root);
         update();
       }}
 
@@ -255,4 +256,3 @@ def build() -> dict:
         "pitfalls_html": pitfalls_html,
         "questions_html": questions_html,
     }
-

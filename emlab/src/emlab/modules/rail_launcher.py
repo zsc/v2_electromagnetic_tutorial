@@ -216,6 +216,20 @@ def build() -> dict:
         ),
     )
 
+    fig_force = go.Figure(
+        data=[
+            go.Scatter(x=[0, 1], y=[0, 0], mode="lines", name="F(t)", line=dict(color="#ff6b6b", width=2)),
+        ],
+        layout=go.Layout(
+            template="plotly_dark",
+            margin=dict(l=55, r=20, t=40, b=45),
+            title="电磁力（理想化）F(t) ≈ ½·L'·I²",
+            xaxis_title="t (ms)",
+            yaxis_title="F (kN)",
+            showlegend=False,
+        ),
+    )
+
     fig2 = go.Figure(
         data=[
             go.Scatter(x=[0, 1], y=[0, 0], mode="lines", name="E_C", stackgroup="one", line=dict(width=0.5), fillcolor="rgba(102,217,239,0.35)"),
@@ -300,8 +314,9 @@ def build() -> dict:
       emlabBindValue(root, "{module_id}-len", " m", 2);
 
       const figI = document.getElementById("fig-{module_id}-0");
-      const figXV = document.getElementById("fig-{module_id}-1");
-      const figE = document.getElementById("fig-{module_id}-2");
+      const figF = document.getElementById("fig-{module_id}-1");
+      const figXV = document.getElementById("fig-{module_id}-2");
+      const figE = document.getElementById("fig-{module_id}-3");
 
       const readouts = root.querySelector("#readouts-"+id);
       emlabMakeReadouts(readouts, [
@@ -402,6 +417,9 @@ def build() -> dict:
           y:[I.map(ii=>ii/1000.0), Vc.map(vv=>vv/1000.0)]
         }}, [0,1]);
 
+        const F = I.map(ii => 0.5*Lp*ii*ii); // N
+        Plotly.restyle(figF, {{x:[tms], y:[F.map(ff=>ff/1000.0)]}}, [0]);
+
         Plotly.restyle(figXV, {{
           x:[tms, tms],
           y:[x, v]
@@ -429,6 +447,7 @@ def build() -> dict:
           const el = root.querySelector("#{module_id}-"+k);
           if(el) el.value = d[k];
         }});
+        emlabRefreshBoundValues(root);
         update();
       }}
 
@@ -447,10 +466,9 @@ def build() -> dict:
         "title": "M05 理想化导轨：RLC 放电 + I² 力 + 能量条",
         "intro_html": intro_html,
         "controls_html": controls_html,
-        "figures": [fig0, fig1, fig2],
+        "figures": [fig0, fig_force, fig1, fig2],
         "data_payload": data_payload,
         "js": js,
         "pitfalls_html": pitfalls_html,
         "questions_html": questions_html,
     }
-

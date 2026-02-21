@@ -278,8 +278,9 @@ def build() -> dict:
           root.querySelector("#{module_id}-ro-dy").textContent = isFinite(dy) ? (emlabFmt(dy*1000,2)+" mm") : "未击中屏";
         }}
 
-        // enable/disable E by mode
+        // enable/disable by mode
         els.E.disabled = (mode !== "selector");
+        els.Vacc.disabled = (mode === "selector");
       }}
 
       function reset(){{
@@ -288,6 +289,7 @@ def build() -> dict:
           const el = root.querySelector("#{module_id}-"+k);
           if(el) el.value = d[k];
         }});
+        emlabRefreshBoundValues(root);
         update();
       }}
 
@@ -312,4 +314,3 @@ def build() -> dict:
         "pitfalls_html": pitfalls_html,
         "questions_html": questions_html,
     }
-

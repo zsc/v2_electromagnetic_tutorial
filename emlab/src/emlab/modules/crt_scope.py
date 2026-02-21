@@ -43,7 +43,6 @@ def build() -> dict:
                 value="yt",
                 options=[("yt", "Y-T（随时间）"), ("xy", "X-Y（李萨如）")],
             ),
-            f'<div id="{module_id}-group-yt">',
             select(
                 cid=f"{module_id}-wave",
                 label="Y 输入波形",
@@ -74,6 +73,7 @@ def build() -> dict:
                 value=20,
                 unit=" Hz",
             ),
+            f'<div id="{module_id}-group-yt">',
             slider(
                 cid=f"{module_id}-Ts",
                 label="时基扫掠周期 T_sweep (s)",
@@ -107,7 +107,7 @@ def build() -> dict:
             ),
             slider(
                 cid=f"{module_id}-phi",
-                label="相位差 φ (deg)",
+                label="相位差 φ（Y 相对 X）(deg)",
                 vmin=0,
                 vmax=180,
                 step=1,
@@ -462,6 +462,7 @@ def build() -> dict:
           const el = root.querySelector("#{module_id}-"+k);
           if(el) el.value = d[k];
         }});
+        emlabRefreshBoundValues(root);
         update();
       }}
 

@@ -362,6 +362,9 @@ TEMPLATE = Template(
             <div class="card controls">
               <h3>参数</h3>
               {{ m.controls_html|safe }}
+              <div class="btnrow">
+                <button class="btn" id="snap-{{m.id}}" type="button">导出主图 PNG</button>
+              </div>
             </div>
             <div class="card">
               <h3>图表</h3>
@@ -411,9 +414,25 @@ TEMPLATE = Template(
         const input = root.querySelector("#"+inputId);
         const span = root.querySelector("#"+inputId+"-val");
         if(!input || !span) return;
+        input.dataset.emlabBound = "1";
+        input.dataset.emlabUnit = unit || "";
+        input.dataset.emlabDigits = (digits === undefined) ? "" : String(digits);
         const update = () => { span.textContent = emlabFmt(emlabNum(input.value), digits) + (unit || ""); };
         input.addEventListener("input", update);
         update();
+      }
+      function emlabRefreshBoundValues(root){
+        if(!root) return;
+        const inputs = root.querySelectorAll('input[data-emlab-bound="1"]');
+        inputs.forEach(input => {
+          if(!input.id) return;
+          const span = root.querySelector("#"+input.id+"-val");
+          if(!span) return;
+          const unit = input.dataset.emlabUnit || "";
+          const dr = input.dataset.emlabDigits;
+          const digits = (dr === undefined || dr === "") ? undefined : parseFloat(dr);
+          span.textContent = emlabFmt(emlabNum(input.value), digits) + unit;
+        });
       }
       function emlabFindBracket(arr, x){
         // arr: increasing numeric list
@@ -484,6 +503,17 @@ TEMPLATE = Template(
           if(btn){
             btn.addEventListener("click", () => emlabShow(id));
           }
+        });
+        // snapshot buttons (export first figure)
+        emlabModules.forEach(id => {
+          const btn = document.getElementById("snap-"+id);
+          if(!btn) return;
+          btn.addEventListener("click", () => {
+            const fig = document.getElementById("fig-"+id+"-0");
+            if(!fig || typeof Plotly === "undefined") return;
+            const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+            Plotly.downloadImage(fig, {format:"png", filename:"emlab_"+id+"_"+ts, width: 1100, height: 700});
+          });
         });
         // init modules
         emlabModules.forEach(id => {
