@@ -8,53 +8,28 @@ import plotly.graph_objects as go
 from emlab.common.htmlbits import buttons, select, slider
 
 
-def _rlc_normalized_waveforms(
-    *,
-    t: np.ndarray,
-    R: float,
-    L: float,
-    C: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _rlc_normalized_current(*, t: np.ndarray, R: float, L: float, C: float) -> np.ndarray:
     """
-    Normalized series RLC discharge waveforms for V0=1:
+    Normalized series RLC discharge current for V0=1:
     - i_n(t): current (A per V)
-    - q_n(t): cumulative charge transferred = ∫i dt (C per V)
-    - j1_n(t): cumulative ∫ i^2 dt (A^2*s per V^2)
-    - j2_n(t): cumulative ∫ (∫ i^2 dt) dt  (A^2*s^2 per V^2)
+
+    Note: Other derived quantities (charge transfer, ∫i²dt) are computed in the browser to
+    reduce the single-file HTML payload size.
     """
     alpha = R / (2.0 * L)
     w0 = 1.0 / math.sqrt(L * C)
 
-    # capacitor voltage normalized: vc(0)=1, dvc/dt(0)=0
-    vc = np.zeros_like(t, dtype=float)
     if alpha < w0 * (1 - 1e-6):
         wd = math.sqrt(w0 * w0 - alpha * alpha)
-        vc = np.exp(-alpha * t) * (np.cos(wd * t) + (alpha / wd) * np.sin(wd * t))
         i = (1.0 / (L * wd)) * np.exp(-alpha * t) * np.sin(wd * t)
     elif abs(alpha - w0) / w0 <= 1e-6:
-        # critical
-        vc = np.exp(-alpha * t) * (1.0 + alpha * t)
         i = (t / L) * np.exp(-alpha * t)
     else:
-        # over-damped
         beta = math.sqrt(alpha * alpha - w0 * w0)
         s1 = -alpha + beta
         s2 = -alpha - beta
-        vc = (s2 * np.exp(s1 * t) - s1 * np.exp(s2 * t)) / (s2 - s1)
         i = (1.0 / L) * (np.exp(s1 * t) - np.exp(s2 * t)) / (s1 - s2)
-
-    # cumulative charge transferred: q = C*(1 - vc)  (for V0=1)
-    q = C * (1.0 - vc)
-
-    # integrals for force/kinematics
-    dt = float(t[1] - t[0])
-    i2 = i * i
-    j1 = np.zeros_like(t, dtype=float)
-    j2 = np.zeros_like(t, dtype=float)
-    for k in range(1, len(t)):
-        j1[k] = j1[k - 1] + 0.5 * (i2[k - 1] + i2[k]) * dt
-        j2[k] = j2[k - 1] + 0.5 * (j1[k - 1] + j1[k]) * dt
-    return i.astype(float), q.astype(float), j1.astype(float), j2.astype(float)
+    return i.astype(float)
 
 
 def build() -> dict:
@@ -86,25 +61,13 @@ def build() -> dict:
     wave_L: list[dict] = []
     for L in L_opts:
         I_grid = []
-        Q_grid = []
-        J1_grid = []
-        J2_grid = []
         for R in R_grid:
             I_row = []
-            Q_row = []
-            J1_row = []
-            J2_row = []
             for C in C_grid:
-                i_n, q_n, j1_n, j2_n = _rlc_normalized_waveforms(t=t, R=float(R), L=float(L), C=float(C))
+                i_n = _rlc_normalized_current(t=t, R=float(R), L=float(L), C=float(C))
                 I_row.append(i_n.tolist())
-                Q_row.append(q_n.tolist())
-                J1_row.append(j1_n.tolist())
-                J2_row.append(j2_n.tolist())
             I_grid.append(I_row)
-            Q_grid.append(Q_row)
-            J1_grid.append(J1_row)
-            J2_grid.append(J2_row)
-        wave_L.append({"I": I_grid, "Q": Q_grid, "J1": J1_grid, "J2": J2_grid})
+        wave_L.append({"I": I_grid})
 
     controls_html = "\n".join(
         [
@@ -392,14 +355,24 @@ def build() -> dict:
         if(!wave) return;
 
         const In = emlabBilinearSeries(wave.I, Rg, Cg, R, C);
-        const Qn = emlabBilinearSeries(wave.Q, Rg, Cg, R, C);
-        const J1n = emlabBilinearSeries(wave.J1, Rg, Cg, R, C);
-        const J2n = emlabBilinearSeries(wave.J2, Rg, Cg, R, C);
-
         const t = data.t || [];
         const N = t.length;
         if(N < 2) return;
-        const dt = t[1]-t[0];
+
+        // derive charge transfer Qn = ∫i dt and J1n = ∫i² dt (normalized V0=1)
+        const Qn = new Array(N);
+        const J1n = new Array(N);
+        Qn[0] = 0; J1n[0] = 0;
+        let q = 0, j1 = 0;
+        for(let i=1;i<N;i++){{
+          const dt = t[i] - t[i-1];
+          const i0 = In[i-1], i1v = In[i];
+          q += 0.5*(i0 + i1v)*dt;
+          const a0 = i0*i0, a1 = i1v*i1v;
+          j1 += 0.5*(a0 + a1)*dt;
+          Qn[i] = q;
+          J1n[i] = j1;
+        }}
 
         // scale to actual V0 (linear system)
         const I = scale1d(In, V0);
@@ -420,6 +393,7 @@ def build() -> dict:
           // raw v from cumulative I^2 integral
           const vraw = aFac*(V0*V0*J1n[i]) - mu*g*t[i];
           v[i] = Math.max(0, vraw);
+          const dt = t[i] - t[i-1];
           x[i] = x[i-1] + 0.5*(v[i-1]+v[i])*dt;
           if(x[i] >= xMax){{
             x[i] = xMax;
