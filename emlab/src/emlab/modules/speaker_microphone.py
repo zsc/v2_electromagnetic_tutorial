@@ -33,7 +33,7 @@ def build() -> dict:
                 label="频率 f (Hz)",
                 vmin=20,
                 vmax=2000,
-                step=5,
+                step=1,
                 value=200,
                 unit=" Hz",
             ),

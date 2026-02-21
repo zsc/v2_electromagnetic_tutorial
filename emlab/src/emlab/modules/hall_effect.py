@@ -52,7 +52,10 @@ def build() -> dict:
     )
 
     fig0 = go.Figure(
-        data=[go.Scatter(x=[0, 0.2], y=[0, 1], mode="lines", line=dict(color="#66d9ef", width=2), name="V_H(B)")],
+        data=[
+            go.Scatter(x=[0, 0.2], y=[0, 1], mode="lines", line=dict(color="#66d9ef", width=2), name="V_H(B)"),
+            go.Scatter(x=[0.08], y=[0.0], mode="markers", name="当前", marker=dict(size=10, color="#ff6b6b"), showlegend=False),
+        ],
         layout=go.Layout(
             template="plotly_dark",
             margin=dict(l=55, r=20, t=40, b=45),
@@ -193,7 +196,7 @@ def build() -> dict:
           Bs.push(bb);
           Vs.push(1000*(I*bb)/(n*q*t) * sign);
         }}
-        Plotly.restyle(figVB, {{x:[Bs], y:[Vs]}}, [0]);
+        Plotly.restyle(figVB, {{x:[Bs, [B]], y:[Vs, [1000*VH]]}}, [0,1]);
 
         // direction diagram: Lorentz force direction flips with carrier sign
         // Keep I along +x and B out of page; for v along +x, q(v×B) is -y for q>0; reversed for electrons.

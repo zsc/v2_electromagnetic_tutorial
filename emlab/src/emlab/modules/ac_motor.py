@@ -240,11 +240,16 @@ def build() -> dict:
           y:[s.by, [0, s.by[idx]], [s.by[idx]]]
         }}, [0,1,2]);
 
-        // currents + |B|
+        // currents + |B| (use markers + time line to link with vector plot)
         let traces = [];
+        let marks = [];
+        const tPick = s.t[idx];
         if(mode === "single"){{
           traces = [
             {{x:s.t, y:s.ia, mode:"lines", name:"I_a", line:{{color:"#66d9ef", width:2}}}},
+          ];
+          marks = [
+            {{x:[tPick], y:[s.ia[idx]], mode:"markers", marker:{{size:8, color:"#66d9ef"}}, showlegend:false, hoverinfo:"skip"}},
           ];
           root.querySelector("#{module_id}-ro-tip").textContent = "单相：端点往返，起动困难（定性）。";
         }} else if(mode === "three"){{
@@ -253,15 +258,26 @@ def build() -> dict:
             {{x:s.t, y:s.ib, mode:"lines", name:"I_b", line:{{color:"#a6e22e", width:2}}}},
             {{x:s.t, y:s.ic, mode:"lines", name:"I_c", line:{{color:"#ff6b6b", width:2}}}},
           ];
+          marks = [
+            {{x:[tPick], y:[s.ia[idx]], mode:"markers", marker:{{size:8, color:"#66d9ef"}}, showlegend:false, hoverinfo:"skip"}},
+            {{x:[tPick], y:[s.ib[idx]], mode:"markers", marker:{{size:8, color:"#a6e22e"}}, showlegend:false, hoverinfo:"skip"}},
+            {{x:[tPick], y:[s.ic[idx]], mode:"markers", marker:{{size:8, color:"#ff6b6b"}}, showlegend:false, hoverinfo:"skip"}},
+          ];
           root.querySelector("#{module_id}-ro-tip").textContent = "三相：端点近圆周，|B| 近恒定。";
         }} else {{
           traces = [
             {{x:s.t, y:s.ia, mode:"lines", name:"I_main", line:{{color:"#66d9ef", width:2}}}},
             {{x:s.t, y:s.ib, mode:"lines", name:"I_aux", line:{{color:"#a6e22e", width:2}}}},
           ];
+          marks = [
+            {{x:[tPick], y:[s.ia[idx]], mode:"markers", marker:{{size:8, color:"#66d9ef"}}, showlegend:false, hoverinfo:"skip"}},
+            {{x:[tPick], y:[s.ib[idx]], mode:"markers", marker:{{size:8, color:"#a6e22e"}}, showlegend:false, hoverinfo:"skip"}},
+          ];
           root.querySelector("#{module_id}-ro-tip").textContent = "电容相移：端点椭圆（相位差越接近 90°越接近圆）。";
         }}
         traces.push({{x:s.t, y:s.bmag, mode:"lines", name:"|B|", line:{{color:"rgba(255,255,255,0.85)", width:1.5, dash:"dot"}}, yaxis:"y2"}});
+        marks.push({{x:[tPick], y:[s.bmag[idx]], mode:"markers", marker:{{size:8, color:"rgba(255,255,255,0.85)"}}, yaxis:"y2", showlegend:false, hoverinfo:"skip"}});
+        const allTraces = traces.concat(marks);
 
         const layout = {{
           template:"plotly_dark",
@@ -270,9 +286,32 @@ def build() -> dict:
           xaxis:{{title:"t (ms)"}},
           yaxis:{{title:"I (arb.)"}},
           yaxis2:{{title:"|B| (arb.)", overlaying:"y", side:"right", showgrid:false}},
+          shapes:[{{
+            type:"line",
+            x0:tPick, x1:tPick,
+            y0:0, y1:1,
+            xref:"x", yref:"paper",
+            line:{{color:"rgba(255,255,255,0.35)", width:1, dash:"dot"}}
+          }}],
           legend:{{orientation:"h", yanchor:"bottom", y:1.02, xanchor:"left", x:0}},
         }};
-        Plotly.react(figCur, traces, layout, {{displaylogo:false, responsive:true}});
+        Plotly.react(figCur, allTraces, layout, {{displaylogo:false, responsive:true}});
+        if(figCur && figCur.on && !figCur.dataset.emlabPick){{
+          figCur.dataset.emlabPick = "1";
+          figCur.on("plotly_click", (ev) => {{
+            if(!ev || !ev.points || !ev.points.length) return;
+            const xms = ev.points[0].x;
+            if(!isFinite(xms)) return;
+            const fNow = Math.max(1e-9, emlabNum(els.f.value));
+            let tt = (xms/1000.0) * fNow;
+            if(!isFinite(tt)) return;
+            tt = Math.max(0.0, Math.min(1.0, tt));
+            els.t0.value = tt.toFixed(3);
+            const span = root.querySelector("#{module_id}-t0-val");
+            if(span) span.textContent = emlabFmt(tt,3) + "周期";
+            update();
+          }});
+        }}
 
         // readouts
         root.querySelector("#{module_id}-ro-n").textContent = emlabFmt(60*f, 1) + " rpm";

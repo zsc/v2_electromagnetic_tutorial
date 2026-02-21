@@ -49,7 +49,7 @@ def build() -> dict:
                 vmin=0.01,
                 vmax=0.20,
                 step=0.001,
-                value=0.08,
+                value=0.03,
                 unit=" T",
             ),
             select(
@@ -92,9 +92,9 @@ def build() -> dict:
     fig0 = go.Figure(
         data=[
             go.Scatter(x=[0], y=[0], mode="lines", name="轨迹 A", line=dict(color="#66d9ef", width=3)),
-            go.Scatter(x=[0], y=[0], mode="markers", name="落点 A", marker=dict(size=10, color="#66d9ef")),
+            go.Scatter(x=[0], y=[0], mode="markers", name="落点 A", marker=dict(size=10, color="#66d9ef"), showlegend=False),
             go.Scatter(x=[0], y=[0], mode="lines", name="轨迹 B", line=dict(color="#a6e22e", width=3)),
-            go.Scatter(x=[0], y=[0], mode="markers", name="落点 B", marker=dict(size=10, color="#a6e22e")),
+            go.Scatter(x=[0], y=[0], mode="markers", name="落点 B", marker=dict(size=10, color="#a6e22e"), showlegend=False),
         ],
         layout=go.Layout(
             template="plotly_dark",
@@ -116,9 +116,16 @@ def build() -> dict:
 
     fig1 = go.Figure(
         data=[
-            go.Scatter(x=[1, 2, 3], y=[0, 1, 2], mode="lines", name="y_hit(m/q)", line=dict(color="#66d9ef", width=2)),
-            go.Scatter(x=[1], y=[0], mode="markers", name="A", marker=dict(size=10, color="#66d9ef")),
-            go.Scatter(x=[1], y=[0], mode="markers", name="B", marker=dict(size=10, color="#a6e22e")),
+            go.Scatter(
+                x=[1, 2, 3],
+                y=[0, 1, 2],
+                mode="lines",
+                name="落点曲线",
+                line=dict(color="rgba(255,255,255,0.70)", width=1.5),
+                showlegend=False,
+            ),
+            go.Scatter(x=[1], y=[0], mode="markers", name="粒子 A", marker=dict(size=10, color="#66d9ef")),
+            go.Scatter(x=[1], y=[0], mode="markers", name="粒子 B", marker=dict(size=10, color="#a6e22e")),
         ],
         layout=go.Layout(
             template="plotly_dark",
@@ -153,7 +160,7 @@ def build() -> dict:
         "species": {k: v for k, v in species},
         "x_det": 0.15,
         "u_over_e_kg_per_C": 1.66053906660e-27 / 1.602176634e-19,
-        "defaults": {"Vacc": 1200, "B": 0.08, "mode": "accel", "E": 2000, "sp1": "H+", "sp2": "Ne+"},
+        "defaults": {"Vacc": 1200, "B": 0.03, "mode": "accel", "E": 2000, "sp1": "H+", "sp2": "Ne+"},
     }
 
     js = rf"""
@@ -258,6 +265,7 @@ def build() -> dict:
 
         const aLabel = els.sp1.value;
         const bLabel = els.sp2.value;
+        const showB = (bLabel !== "none");
 
         const moqA = moq_kgC(aLabel);
         const moqB = (bLabel === "none") ? null : moq_kgC(bLabel);
@@ -282,6 +290,7 @@ def build() -> dict:
         const hitBy = (arcB && bLabel !== "none") ? [arcB.yHit] : [0];
 
         Plotly.restyle(figTraj, {{x:[xA, hitAx, xB, hitBx], y:[yA, hitAy, yB, hitBy]}}, [0,1,2,3]);
+        Plotly.restyle(figTraj, {{visible: [true, !!arcA, showB, showB && !!arcB]}}, [0,1,2,3]);
 
         // hit position vs m/q curve (scan)
         const moqList = Object.values(sp);
@@ -299,15 +308,19 @@ def build() -> dict:
           x:[xs, [sp[aLabel]||1], (bLabel==="none")?[0]:[sp[bLabel]||1]],
           y:[ys, [arcA?arcA.yHit:0], (bLabel==="none")?[0]:[arcB?arcB.yHit:0]],
         }}, [0,1,2]);
+        Plotly.restyle(figHit, {{visible: [true, !!arcA, showB && !!arcB]}}, [0,1,2]);
 
         // readouts
-        const vTxtA = "v≈"+emlabFmt(kA.v,2)+" m/s, r≈"+emlabFmt(kA.r,3)+" m";
+        let vTxtA = "v≈"+emlabFmt(kA.v,2)+" m/s, r≈"+emlabFmt(kA.r,3)+" m";
+        if(!arcA) vTxtA += "（未击中屏）";
         root.querySelector("#{module_id}-ro-a").textContent = vTxtA;
         if(bLabel === "none" || !kB) {{
           root.querySelector("#{module_id}-ro-b").textContent = "—";
           root.querySelector("#{module_id}-ro-dy").textContent = "—";
         }} else {{
-          root.querySelector("#{module_id}-ro-b").textContent = "v≈"+emlabFmt(kB.v,2)+" m/s, r≈"+emlabFmt(kB.r,3)+" m";
+          let vTxtB = "v≈"+emlabFmt(kB.v,2)+" m/s, r≈"+emlabFmt(kB.r,3)+" m";
+          if(!arcB) vTxtB += "（未击中屏）";
+          root.querySelector("#{module_id}-ro-b").textContent = vTxtB;
           const dy = (arcA && arcB) ? Math.abs(arcA.yHit - arcB.yHit) : NaN;
           root.querySelector("#{module_id}-ro-dy").textContent = isFinite(dy) ? (emlabFmt(dy*1000,2)+" mm") : "未击中屏";
         }}

@@ -29,6 +29,7 @@ def build() -> dict:
     </ul>
     <p>
       本页用“薄透镜近似”的光线追迹展示聚焦效果，并给出 λ(V) 曲线与当前读数。
+      为了让两张图更“联动”，这里把加速电压 V 对聚焦强度的影响也做了教学近似：<b>V 越大电子越快，同样 I_lens 的聚焦越弱</b>（焦距更长）。
     </p>
     """
 
@@ -227,8 +228,11 @@ def build() -> dict:
 
         // thin-lens ray tracing in (z,y). Lens at zL, screen at zS.
         const z0 = 0.0, zL = 0.08, zS = 0.20;
-        // empirical f: 1/f ∝ I^2 ; clamp
-        const invf = 8.0 * (I*I); // 1/m (teaching scale)
+        // teaching: faster electrons are harder to bend, so focusing is weaker at higher V
+        // use a simple scaling: 1/f ∝ I^2 / sqrt(V)
+        const Vref = 5000;
+        const vScale = Math.sqrt(Vref / Math.max(1e-9, V));
+        const invf = 8.0 * (I*I) * vScale; // 1/m (teaching scale)
         const f = (invf > 1e-6) ? (1.0/invf) : 1e6;
         root.querySelector("#{module_id}-ro-f").textContent = (f > 5) ? "很弱(>5m)" : emlabFmt(f,3) + " m";
 

@@ -11,8 +11,13 @@ def build() -> dict:
 
     intro_html = """
     <p>
-      这个页面把“单摆”放进电场/磁场与线圈电路中，用可调参数把不可见的力、阻尼与能量转化变成可观察的曲线。
-      你可以在 4 个变体之间切换：
+      这页研究的是：<b>同一个单摆</b>，放进不同电磁环境后会出现哪些“看得见的变化”。你可以把它当作 4 个小实验：
+      <b>电场改变平衡位置</b>、<b>磁感应带来电磁阻尼</b>、<b>线圈负载改变阻尼强弱</b>、<b>电磁驱动产生共振</b>。
+    </p>
+    <p>
+      <b>怎么用：</b>先选一个变体，然后拖动左侧参数。
+      右侧三张图的含义是固定的：<b>图1=单摆示意图（支点在上方，线长已归一；它不是“轨迹图”）</b>，
+      <b>图2=角度随时间 θ(t)</b>，<b>图3=该变体的“电路/能量/共振”输出</b>。
     </p>
     <ol>
       <li><b>带电小球 + 匀强电场</b>：<code>F=qE</code> 与 <code>mg</code> 合成，平衡角 <code>θ_eq</code> 改变，周期随“等效重力”改变。</li>
@@ -470,16 +475,18 @@ def build() -> dict:
           const xNow = Math.sin(th[0]), yNow = -Math.cos(th[0]);
 
           const schemData = [
+            {{x:[0], y:[0], mode:"markers", marker:{{size:7, color:"rgba(255,255,255,0.70)"}}, hoverinfo:"skip"}},
             {{x:[0, xEq], y:[0, yEq], mode:"lines", line:{{color:"#66d9ef", width:3}}, hoverinfo:"skip"}},
             {{x:[xEq], y:[yEq], mode:"markers", marker:{{size:10, color:"#66d9ef"}}, hoverinfo:"skip"}},
             {{x:[0, x0], y:[0, y0], mode:"lines", line:{{color:"#a6e22e", width:2, dash:"dot"}}, hoverinfo:"skip"}},
             {{x:[x0], y:[y0], mode:"markers", marker:{{size:10, color:"#a6e22e"}}, hoverinfo:"skip"}},
             {{x:[0, xNow], y:[0, yNow], mode:"lines", line:{{color:"#ffffff", width:2}}, hoverinfo:"skip"}},
+            {{x:[xNow], y:[yNow], mode:"markers", marker:{{size:10, color:"#ffffff"}}, hoverinfo:"skip"}},
           ];
           const schemLayout = {{
             template:"plotly_dark",
             margin:{{l:40,r:20,t:40,b:40}},
-            title:"示意：平衡(蓝) 与 初始(绿)",
+            title:"单摆示意：支点(灰)、平衡(蓝)、初始(绿)、当前(白)",
             xaxis:{{range:[-1.2,1.2], showgrid:false, zeroline:false}},
             yaxis:{{range:[-1.3,0.2], scaleanchor:"x", showgrid:false, zeroline:false}},
             showlegend:false
@@ -548,13 +555,14 @@ def build() -> dict:
           // schematic at t=0
           const x0 = Math.sin(th0), y0 = -Math.cos(th0);
           const schemData = [
+            {{x:[0], y:[0], mode:"markers", marker:{{size:7, color:"rgba(255,255,255,0.70)"}}, hoverinfo:"skip"}},
             {{x:[0, x0], y:[0, y0], mode:"lines", line:{{color:"#66d9ef", width:3}}, hoverinfo:"skip"}},
             {{x:[x0], y:[y0], mode:"markers", marker:{{size:10, color:"#a6e22e"}}, hoverinfo:"skip"}},
           ];
           const schemLayout = {{
             template:"plotly_dark",
             margin:{{l:40,r:20,t:40,b:40}},
-            title:"示意：涡流阻尼（能量→热）",
+            title:"单摆示意：涡流阻尼（机械能→热）",
             xaxis:{{range:[-1.2,1.2], showgrid:false, zeroline:false}},
             yaxis:{{range:[-1.3,0.2], scaleanchor:"x", showgrid:false, zeroline:false}},
             showlegend:false
@@ -622,13 +630,14 @@ def build() -> dict:
           const thO = t.map(tt => th0*Math.exp(-gammaOpen*tt)*Math.cos(wdO*tt));
 
           const schemData = [
+            {{x:[0], y:[0], mode:"markers", marker:{{size:7, color:"rgba(255,255,255,0.70)"}}, hoverinfo:"skip"}},
             {{x:[0, Math.sin(th0)], y:[0, -Math.cos(th0)], mode:"lines", line:{{color:"#66d9ef", width:3}}, hoverinfo:"skip"}},
             {{x:[Math.sin(th0)], y:[-Math.cos(th0)], mode:"markers", marker:{{size:10, color:"#a6e22e"}}, hoverinfo:"skip"}},
           ];
           const schemLayout = {{
             template:"plotly_dark",
             margin:{{l:40,r:20,t:40,b:40}},
-            title:"示意：磁铁单摆 + 线圈（负载改变阻尼）",
+            title:"单摆示意：磁铁单摆 + 线圈（负载改变阻尼）",
             xaxis:{{range:[-1.2,1.2], showgrid:false, zeroline:false}},
             yaxis:{{range:[-1.3,0.2], scaleanchor:"x", showgrid:false, zeroline:false}},
             showlegend:false
@@ -694,13 +703,14 @@ def build() -> dict:
 
         const th = t.map(tt => Amp * Math.sin(w*tt - phi));
         const schemData = [
+          {{x:[0], y:[0], mode:"markers", marker:{{size:7, color:"rgba(255,255,255,0.70)"}}, hoverinfo:"skip"}},
           {{x:[0, Math.sin(th[0])], y:[0, -Math.cos(th[0])], mode:"lines", line:{{color:"#66d9ef", width:3}}, hoverinfo:"skip"}},
           {{x:[Math.sin(th[0])], y:[-Math.cos(th[0])], mode:"markers", marker:{{size:10, color:"#a6e22e"}}, hoverinfo:"skip"}},
         ];
         const schemLayout = {{
           template:"plotly_dark",
           margin:{{l:40,r:20,t:40,b:40}},
-          title:"示意：电磁驱动（稳态响应近似）",
+          title:"单摆示意：电磁驱动（稳态响应近似）",
           xaxis:{{range:[-1.2,1.2], showgrid:false, zeroline:false}},
           yaxis:{{range:[-1.3,0.2], scaleanchor:"x", showgrid:false, zeroline:false}},
           showlegend:false
