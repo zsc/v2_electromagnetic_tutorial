@@ -573,6 +573,7 @@ def build() -> dict:
         if(mode !== "yt") return;
         if(timer){{ stopRolling(); return; }}
         timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stopRolling(); return; }}
           const Ts = Math.max(1e-3, emlabNum(els.Ts.value));
           tOffset = (tOffset + Ts/40) % 1000.0;
           update();

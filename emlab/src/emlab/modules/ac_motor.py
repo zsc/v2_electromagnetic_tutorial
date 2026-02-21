@@ -283,6 +283,7 @@ def build() -> dict:
       function togglePlay(){{
         if(timer){{ stop(); return; }}
         timer = setInterval(() => {{
+          if(!root.classList.contains("active")) {{ stop(); return; }}
           let v = emlabNum(els.t0.value);
           v += 0.005;
           if(v > 1.0) v -= 1.0;
