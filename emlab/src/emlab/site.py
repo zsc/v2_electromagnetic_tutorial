@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import html
 import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable
 
 import plotly.io as pio
@@ -45,6 +47,239 @@ def _json_default(obj: Any) -> Any:
 
 def _dumps(data: Any) -> str:
     return json.dumps(data, ensure_ascii=False, separators=(",", ":"), default=_json_default)
+
+
+def _split_md_sections(md: str) -> dict[str, str]:
+    """
+    Split a markdown document into sections keyed by `## <key>` headings.
+    The text before the first `##` is ignored.
+    """
+    sections: dict[str, str] = {}
+    cur: str | None = None
+    buf: list[str] = []
+    for raw in md.splitlines():
+        line = raw.rstrip("\n")
+        m = re.match(r"^##\s+(\S+)\s*$", line)
+        if m:
+            if cur is not None:
+                sections[cur] = "\n".join(buf).strip("\n")
+            cur = m.group(1).strip()
+            buf = []
+            continue
+        if cur is None:
+            continue
+        buf.append(line)
+    if cur is not None:
+        sections[cur] = "\n".join(buf).strip("\n")
+    return sections
+
+
+def _md_inline(text: str) -> str:
+    """
+    Minimal inline markdown:
+    - `code`
+    - **bold**
+    Everything else is HTML-escaped.
+    """
+    parts = text.split("`")
+    out: list[str] = []
+    for i, part in enumerate(parts):
+        if i % 2 == 1:
+            out.append(f"<code>{html.escape(part)}</code>")
+            continue
+        s = html.escape(part)
+        s = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)
+        out.append(s)
+    return "".join(out)
+
+
+def _md_to_html(md: str) -> str:
+    """
+    Minimal markdown renderer for offline packaging (no extra deps).
+
+    Supported:
+    - ### headings (rendered as <h4>) and deeper
+    - unordered / ordered lists
+    - paragraphs
+    - fenced code blocks
+    - horizontal rule: ---
+    - blockquote lines starting with >
+    """
+    out: list[str] = []
+    para: list[str] = []
+    in_code = False
+    code_lines: list[str] = []
+    list_root: dict[str, Any] | None = None
+    list_stack: list[tuple[int, dict[str, Any]]] = []  # (indent_level, node)
+
+    def flush_para() -> None:
+        nonlocal para
+        if not para:
+            return
+        text = " ".join(s.strip() for s in para).strip()
+        if text:
+            out.append(f"<p>{_md_inline(text)}</p>")
+        para = []
+
+    def flush_list() -> None:
+        nonlocal list_root, list_stack
+        if not list_root:
+            return
+
+        def render_list(node: dict[str, Any]) -> str:
+            tag = node["kind"]
+            items = node.get("items", [])
+            inner = "".join(render_item(it) for it in items)
+            return f"<{tag}>{inner}</{tag}>"
+
+        def render_item(it: dict[str, Any]) -> str:
+            s = f"<li>{it['html']}"
+            child = it.get("child")
+            if child:
+                s += render_list(child)
+            s += "</li>"
+            return s
+
+        out.append(render_list(list_root))
+        list_root = None
+        list_stack = []
+
+    def list_add(kind: str, indent_level: int, content: str) -> None:
+        nonlocal list_root, list_stack
+
+        def new_list(k: str) -> dict[str, Any]:
+            return {"kind": k, "items": []}
+
+        if list_root is None:
+            list_root = new_list(kind)
+            list_stack = [(0, list_root)]
+            indent_level = 0
+
+        # climb up if needed
+        while list_stack and indent_level < list_stack[-1][0]:
+            list_stack.pop()
+        if not list_stack:
+            list_root = new_list(kind)
+            list_stack = [(0, list_root)]
+            indent_level = 0
+
+        # descend if needed: attach nested list to last item of current list
+        while indent_level > list_stack[-1][0]:
+            parent = list_stack[-1][1]
+            if not parent["items"]:
+                # malformed indentation; treat as same level
+                indent_level = list_stack[-1][0]
+                break
+            last_item = parent["items"][-1]
+            child = last_item.get("child")
+            if not child or child.get("kind") != kind:
+                child = new_list(kind)
+                last_item["child"] = child
+            list_stack.append((list_stack[-1][0] + 1, child))
+
+        node = list_stack[-1][1]
+        if node.get("kind") != kind:
+            # if list kind changes at same indent, start a new list block
+            flush_list()
+            list_root = new_list(kind)
+            list_stack = [(0, list_root)]
+            node = list_root
+        node["items"].append({"html": _md_inline(content.strip()), "child": None})
+
+    for raw in md.splitlines():
+        line = raw.rstrip("\n")
+        stripped = line.strip()
+
+        if in_code:
+            if stripped.startswith("```"):
+                out.append(f"<pre><code>{html.escape(chr(10).join(code_lines))}</code></pre>")
+                in_code = False
+                code_lines = []
+            else:
+                code_lines.append(line)
+            continue
+
+        if stripped.startswith("```"):
+            flush_para()
+            flush_list()
+            in_code = True
+            code_lines = []
+            continue
+
+        if re.match(r"^---\s*$", stripped):
+            flush_para()
+            flush_list()
+            out.append("<hr/>")
+            continue
+
+        m = re.match(r"^(#{3,6})\s+(.*)$", stripped)
+        if m:
+            flush_para()
+            flush_list()
+            lvl = len(m.group(1))
+            # map ### -> h4, #### -> h5, #####/###### -> h6
+            html_lvl = {3: 4, 4: 5, 5: 6, 6: 6}.get(lvl, 4)
+            out.append(f"<h{html_lvl}>{_md_inline(m.group(2).strip())}</h{html_lvl}>")
+            continue
+
+        m = re.match(r"^>\s?(.*)$", stripped)
+        if m:
+            flush_para()
+            flush_list()
+            out.append(f'<p class="quote">{_md_inline(m.group(1).strip())}</p>')
+            continue
+
+        m = re.match(r"^(\s*)[-*]\s+(.*)$", line)
+        if m:
+            flush_para()
+            list_add("ul", len(m.group(1)) // 2, m.group(2))
+            continue
+
+        m = re.match(r"^(\s*)(\d+)\.\s+(.*)$", line)
+        if m:
+            flush_para()
+            list_add("ol", len(m.group(1)) // 2, m.group(3))
+            continue
+
+        # continuation line within a list item (simple, indentation-based)
+        if list_root is not None and stripped != "":
+            lead = len(line) - len(line.lstrip(" "))
+            if lead >= 2:
+                cont_level = lead // 2
+                target_level = max(0, cont_level - 1)
+                target_node: dict[str, Any] | None = None
+                for lvl, node in reversed(list_stack):
+                    if lvl == target_level:
+                        target_node = node
+                        break
+                if target_node is None:
+                    target_node = list_stack[0][1] if list_stack else list_root
+                if target_node.get("items"):
+                    target_node["items"][-1]["html"] += "<br/>" + _md_inline(stripped)
+                    continue
+
+        if stripped == "":
+            flush_para()
+            flush_list()
+            continue
+
+        para.append(line)
+
+    flush_para()
+    flush_list()
+    if in_code:
+        out.append(f"<pre><code>{html.escape(chr(10).join(code_lines))}</code></pre>")
+
+    return "\n".join(out)
+
+
+def _load_formulas_html() -> dict[str, str]:
+    repo_root = Path(__file__).resolve().parents[3]
+    path = repo_root / "formulas.md"
+    if not path.exists():
+        return {}
+    sections = _split_md_sections(path.read_text(encoding="utf-8"))
+    return {k: _md_to_html(v) for k, v in sections.items()}
 
 
 @dataclass(frozen=True)
@@ -196,6 +431,58 @@ TEMPLATE = Template(
         box-shadow: 0 10px 30px var(--shadow);
         line-height: 1.55;
         color: var(--muted);
+      }
+      .intro details.formula{ margin-top: 10px; }
+      .intro details.formula > summary{
+        font-size: 13px;
+        color: rgba(255,255,255,0.86);
+      }
+      .intro .formula-global, .intro .formula-body{
+        margin-top: 8px;
+        color: rgba(255,255,255,0.78);
+      }
+      .intro .formula-global h4, .intro .formula-body h4,
+      .intro .formula-global h5, .intro .formula-body h5,
+      .intro .formula-global h6, .intro .formula-body h6{
+        margin: 12px 0 6px;
+        font-size: 13px;
+        color: rgba(255,255,255,0.88);
+      }
+      .intro .formula-global p, .intro .formula-body p{ margin: 8px 0; }
+      .intro .formula-global ul, .intro .formula-body ul,
+      .intro .formula-global ol, .intro .formula-body ol{
+        margin: 6px 0 10px 18px;
+        padding-left: 16px;
+      }
+      .intro .formula-global li, .intro .formula-body li{ margin: 4px 0; }
+      .intro .formula-global code, .intro .formula-body code{
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 0.15em 0.35em;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.25);
+      }
+      .intro .formula-global pre, .intro .formula-body pre{
+        margin: 10px 0;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.22);
+        overflow:auto;
+      }
+      .intro .formula-global pre code, .intro .formula-body pre code{
+        display:block;
+        padding: 0;
+        border: none;
+        background: transparent;
+        white-space: pre-wrap;
+      }
+      .intro .quote{
+        margin: 8px 0;
+        padding-left: 10px;
+        border-left: 3px solid rgba(255,255,255,0.18);
+        color: rgba(255,255,255,0.72);
       }
       .grid{
         display:grid;
@@ -556,6 +843,21 @@ def build_site(*, mode: str = "release", no_ct: bool = False) -> str:
         module_builders = [b for b in module_builders if getattr(b, "__module__", "") != xct_ct.__name__]
 
     module_dicts = [b() for b in module_builders if b is not None]
+    formulas_html = _load_formulas_html()
+    global_html = (formulas_html.get("_global") or "").strip()
+    if formulas_html:
+        for md in module_dicts:
+            mid = md.get("id", "")
+            body_html = (formulas_html.get(mid) or "").strip()
+            if not (global_html or body_html):
+                continue
+            parts: list[str] = ['<details class="formula">', "<summary>公式推演（展开）</summary>"]
+            if global_html:
+                parts.append(f'<div class="formula-global">{global_html}</div>')
+            if body_html:
+                parts.append(f'<div class="formula-body">{body_html}</div>')
+            parts.append("</details>")
+            md["intro_html"] = (md.get("intro_html", "") or "") + "\n" + "\n".join(parts)
     modules = [_bundle(md, config=config) for md in module_dicts]
 
     modules_js = "\n\n".join(m.js for m in modules if m.js)
