@@ -636,8 +636,8 @@ TEMPLATE = Template(
     <script>
       window.MathJax = {
         tex: {
-          inlineMath: [['\\(','\\)']],
-          displayMath: [['\\[','\\]']],
+          inlineMath: [['$','$'], ['\\(','\\)']],
+          displayMath: [['$$','$$'], ['\\[','\\]']],
           processEscapes: true
         },
         svg: {
