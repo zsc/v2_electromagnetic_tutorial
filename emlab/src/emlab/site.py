@@ -282,6 +282,14 @@ def _load_formulas_html() -> dict[str, str]:
     return {k: _md_to_html(v) for k, v in sections.items()}
 
 
+def _load_mathjax_inline() -> str | None:
+    repo_root = Path(__file__).resolve().parents[3]
+    path = repo_root / "vendor" / "mathjax" / "tex-svg.js"
+    if not path.exists():
+        return None
+    return path.read_text(encoding="utf-8")
+
+
 @dataclass(frozen=True)
 class ModuleBundle:
     id: str
@@ -624,6 +632,25 @@ TEMPLATE = Template(
     {% else %}
     <script src="{{ plotly_cdn_src }}"></script>
     {% endif %}
+    {% if mathjax_inline %}
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['\\(','\\)']],
+          displayMath: [['\\[','\\]']],
+          processEscapes: true
+        },
+        svg: {
+          fontCache: 'none'
+        },
+        options: {
+          ignoreHtmlClass: 'tex2jax_ignore',
+          processHtmlClass: 'tex2jax_process'
+        }
+      };
+    </script>
+    <script>{{ mathjax_inline|safe }}</script>
+    {% endif %}
   </head>
   <body>
     <div class="app">
@@ -844,6 +871,7 @@ def build_site(*, mode: str = "release", no_ct: bool = False) -> str:
 
     module_dicts = [b() for b in module_builders if b is not None]
     formulas_html = _load_formulas_html()
+    mathjax_inline = _load_mathjax_inline() if formulas_html else None
     global_html = (formulas_html.get("_global") or "").strip()
     if formulas_html:
         for md in module_dicts:
@@ -853,9 +881,9 @@ def build_site(*, mode: str = "release", no_ct: bool = False) -> str:
                 continue
             parts: list[str] = ['<details class="formula">', "<summary>公式推演（展开）</summary>"]
             if global_html:
-                parts.append(f'<div class="formula-global">{global_html}</div>')
+                parts.append(f'<div class="formula-global tex2jax_process">{global_html}</div>')
             if body_html:
-                parts.append(f'<div class="formula-body">{body_html}</div>')
+                parts.append(f'<div class="formula-body tex2jax_process">{body_html}</div>')
             parts.append("</details>")
             md["intro_html"] = (md.get("intro_html", "") or "") + "\n" + "\n".join(parts)
     modules = [_bundle(md, config=config) for md in module_dicts]
@@ -877,5 +905,6 @@ def build_site(*, mode: str = "release", no_ct: bool = False) -> str:
         modules_js=modules_js,
         plotly_inline=plotly_inline,
         plotly_cdn_src=plotly_cdn_src,
+        mathjax_inline=mathjax_inline,
         build_time=datetime.now().strftime("%Y-%m-%d %H:%M"),
     )

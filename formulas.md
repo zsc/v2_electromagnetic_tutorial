@@ -1,882 +1,758 @@
-# EMLab｜公式推演（统一符号版）
+# EMLab｜公式推演（LaTeX 版，统一符号）
 
-> 本文只写“公式推演”。每个模块都遵循同一条主线：  
-> **定律（电磁场） → 等效电路/量（电路） → 与可视化输出对应（图/读数）**。  
-> 推导尽量严格，但保留高中课堂可理解、可记忆、可迁移的写法；并明确哪些是“教学近似”。
+> 本文只写“公式推演”，不写代码实现。  
+> HTML 中用 `\(...\)`（行内）与 `\[...\]`（行间）写 LaTeX，浏览器端用 **MathJax（离线内联）**渲染。
 
 ## _global
 
 ### 统一符号与约定（全模块通用）
 
-- 时间：`t`（s），频率：`f`（Hz），角频率：`ω = 2πf`（rad/s）
-- 电路量：电压 `V`（V），电流 `I`（A），电阻 `R`（Ω），电感 `L`（H），电容 `C`（F）
-- 电磁量：电场 `E`（V/m），磁感应强度 `B`（T），磁通 `Φ`（Wb），电动势/感应电压 `ε`（V）
-- 质点量：电荷 `q`（C），质量 `m`（kg），速度 `v`（m/s），力 `F`（N）
-- 右手定则：`v × B` 的方向用右手；`F = q (v × B)`，若 `q<0`（电子），方向反向
+- 时间：\(t\)（s），频率：\(f\)（Hz），角频率：\(\omega = 2\pi f\)（rad/s）
+- 电路量：电压 \(V\)（V），电流 \(I\)（A），电阻 \(R\)（\(\Omega\)），电感 \(L\)（H），电容 \(C\)（F）
+- 电磁量：电场 \(\mathbf{E}\)（V/m），磁感应强度 \(\mathbf{B}\)（T），磁通 \(\Phi\)（Wb），电动势/感应电压 \(\varepsilon\)（V）
+- 质点量：电荷 \(q\)（C），质量 \(m\)（kg），速度 \(\mathbf{v}\)（m/s），力 \(\mathbf{F}\)（N）
+- 洛伦兹力（统一方向判断公式）：
+  \[
+  \mathbf{F} = q\left(\mathbf{E} + \mathbf{v}\times\mathbf{B}\right).
+  \]
+  当 \(q<0\)（电子）时，方向相对“右手定则”反向。
 - 正弦量（峰值/有效值）：
-  - 若 `x(t) = X̂ sin(ωt + φ)`，则 `X_rms = X̂/√2`
-  - 在“相量/频域”里常用复数表示：`x(t) = Re{ X̃ · e^{jωt} }`，`j² = -1`
-- 常见近似（教学用，真实装置会有偏差）：
-  - 忽略边缘场、空间非均匀、材料非线性、温升导致参数变化
-  - “等效电压/等效力”只保证趋势与量纲正确，不追求工程精度
+  - 若 \(x(t) = \hat X\sin(\omega t+\varphi)\)，则 \(X_{\mathrm{rms}}=\hat X/\sqrt 2\)。
+  - 相量写法：\(x(t)=\Re\{\tilde X\,e^{j\omega t}\}\)，并约定 \(j^2=-1\)。
+- 教学近似边界（所有模块默认）：
+  - 忽略边缘场、空间非均匀、材料非线性、温升导致的参数漂移。
+  - “等效电压/等效力/等效模型”只保证趋势与量纲正确，不追求工程精度。
 
 ---
 
 ## crt_scope
 
-### 目标：推到并记住 `y ∝ V_def / V_acc`
+### 目标：推到并记住 \(y \propto \dfrac{V_{\mathrm{def}}}{V_{\mathrm{acc}}}\)
 
-### 1) 加速段：`V_acc → v`
+### 1) 加速段：\(V_{\mathrm{acc}}\rightarrow v\)
 
-电子（质量 `m_e`，电荷量 `|q|=e`）在加速电压 `V_acc` 下获得动能（非相对论）：
+非相对论近似（动能来自电势能）：
+\[
+eV_{\mathrm{acc}}=\frac12 m_e v^2
+\quad\Rightarrow\quad
+v=\sqrt{\frac{2eV_{\mathrm{acc}}}{m_e}}.
+\]
 
-`e V_acc = ½ m_e v²  ⇒  v = √( 2 e V_acc / m_e )`
+### 2) 偏转板内：\(V_{\mathrm{def}}\rightarrow E_y\rightarrow a_y\rightarrow y_1\)
 
-这一步是很多电子类模块的“共同起点”。
+偏转板间距 \(d\)，电场近似均匀：
+\[
+E_y \approx \frac{V_{\mathrm{def}}}{d}.
+\]
+电场力与加速度：
+\[
+F_y=eE_y,\qquad
+a_y=\frac{F_y}{m_e}=\frac{e}{m_e}\frac{V_{\mathrm{def}}}{d}.
+\]
+偏转板长度 \(l\)，板内飞行时间 \(t_1=l/v\)。板内位移（初始 \(v_y=0\)）：
+\[
+y_1=\frac12 a_y t_1^2
+ = \frac12\frac{e}{m_e}\frac{V_{\mathrm{def}}}{d}\cdot\frac{l^2}{v^2}.
+\]
 
-### 2) 偏转板内：`V_def → E_y → a_y → y₁`
+### 3) 漂移段：\(v_y\rightarrow y_2\)
 
-两偏转板间距 `d`，加偏转电压 `V_def`（板间电场近似均匀）：
+出板获得横向速度：
+\[
+v_y=a_y t_1=\frac{e}{m_e}\frac{V_{\mathrm{def}}}{d}\cdot\frac{l}{v}.
+\]
+漂移段长度 \(L_d\)，漂移时间 \(t_2=L_d/v\)，漂移位移：
+\[
+y_2=v_y t_2=\frac{e}{m_e}\frac{V_{\mathrm{def}}}{d}\cdot\frac{lL_d}{v^2}.
+\]
 
-`E_y ≈ V_def / d`
+### 4) 合并得到比例关系（最重要的“记忆式”）
 
-电场力（取“量级”）：
-
-`F_y = |q| E_y  ⇒  a_y = F_y / m_e = (e/m_e) · (V_def/d)`
-
-偏转板长度 `l`，电子在板内飞行时间：
-
-`t₁ = l / v`
-
-板内位移（匀加速，初始 `v_y=0`）：
-
-`y₁ = ½ a_y t₁² = ½ (e/m_e)(V_def/d) · (l²/v²)`
-
-### 3) 漂移段：`v_y → y₂`
-
-出板时获得横向速度：
-
-`v_y = a_y t₁ = (e/m_e)(V_def/d) · (l/v)`
-
-从板末端到屏幕距离 `L_d`，漂移时间 `t₂ = L_d / v`，再偏转：
-
-`y₂ = v_y t₂ = (e/m_e)(V_def/d) · (l L_d / v²)`
-
-### 4) 合并并看清“比例关系”
-
-总偏转（量级）：
-
-`y = y₁ + y₂ = (e/m_e)(V_def/d) · (l²/2 + l L_d) / v²`
-
-把 `v² = 2 e V_acc / m_e` 代入：
-
-`y = (V_def / V_acc) · (l²/2 + l L_d) / (2d)`
-
+\[
+\begin{aligned}
+y &= y_1+y_2
+  = \frac{e}{m_e}\frac{V_{\mathrm{def}}}{d}\cdot\frac{l^2/2+lL_d}{v^2},\\
+v^2&=\frac{2eV_{\mathrm{acc}}}{m_e}
+\end{aligned}
+\quad\Rightarrow\quad
+y=\frac{V_{\mathrm{def}}}{V_{\mathrm{acc}}}\cdot\frac{l^2/2+lL_d}{2d}.
+\]
 因此（几何量固定时）：
+\[
+y \propto \frac{V_{\mathrm{def}}}{V_{\mathrm{acc}}}.
+\]
 
-`y ∝ V_def / V_acc`
+> 记忆法：\(V_{\mathrm{acc}}\) 越大 \(\Rightarrow v\) 越大 \(\Rightarrow\) 在偏转区“停留时间”更短 \(\Rightarrow\) 同样 \(V_{\mathrm{def}}\) 偏转更小。
 
-> 记忆法：`V_acc` 越大电子越“硬”（更快、停留时间更短），所以同样 `V_def` 偏转更小。
+### 5) 数字示波器：采样与量化（两条必会公式）
 
-### 5) 数字示波器的两条公式（采样与量化）
-
-- 采样时刻：`t_n = n / f_s`（`f_s` 为采样率）
-- 量化台阶（近似）：若满量程 `±A`，`Nbits` 位量化，则
-  - `Δ ≈ 2A / 2^{Nbits}`（相邻码间距）
-  - 量化误差约在 `[-Δ/2, +Δ/2]`
-- 混叠（定性记忆）：当 `f` 接近或超过 `f_s/2`，采样会把高频“折叠”成低频；
-  常用表达：`f_alias = |f - k f_s|`（取整数 `k` 使 `f_alias` 落在 `[0, f_s/2]`）
+- 采样时刻：\(\;t_n = n/f_s\)（采样率 \(f_s\)）
+- 量化台阶（满量程 \(\pm A\)，位数 \(N_{\mathrm{bits}}\)）：
+  \[
+  \Delta \approx \frac{2A}{2^{N_{\mathrm{bits}}}},\qquad
+  e_q\in\left[-\frac{\Delta}{2},\frac{\Delta}{2}\right]
+  \quad(\text{理想均匀量化}).
+  \]
+- 混叠（定性记忆）：当信号频率接近/超过 \(f_s/2\)，会折叠为低频；常用写法：
+  \[
+  f_{\mathrm{alias}}=\lvert f-kf_s\rvert
+  \quad(\text{取整数 }k\text{ 使 }f_{\mathrm{alias}}\in[0,f_s/2]).
+  \]
 
 ---
 
 ## xct_ct
 
-### 目标：从 Beer–Lambert 到 Radon，再到 BP/FBP
+### 目标：从 Beer–Lambert \(\rightarrow\) Radon \(\rightarrow\) BP/FBP
 
-### 1) 透射：`μ(x,y) → I_out`
+### 1) 透射与“投影数据”
 
-设截面衰减系数为 `μ(x,y)`（单位 `m⁻¹`）。X 射线沿某条直线 `L(θ,s)` 穿过物体时：
+设截面衰减系数为 \(\mu(x,y)\)（单位 \( \mathrm{m^{-1}}\)）。沿一条射线 \(L(\theta,s)\)：
+\[
+I_{\mathrm{out}} = I_{\mathrm{in}}\exp\!\left(-\int_{L(\theta,s)} \mu\,ds\right).
+\]
+取对数得到更“线性”的投影量：
+\[
+p(\theta,s):=-\ln\!\left(\frac{I_{\mathrm{out}}}{I_{\mathrm{in}}}\right)
+ = \int_{L(\theta,s)} \mu\,ds.
+\]
+这一步说明：CT 的核心数据不是照片，而是“线积分”。
 
-`I_out = I_in · exp( - ∫_L μ ds )`
+### 2) Radon 形式：用 \((\theta,s)\) 描述一条直线
 
-取对数得到“投影数据”（更接近线积分）：
+直线方程（法向量角度为 \(\theta\)）：
+\[
+x\cos\theta + y\sin\theta = s.
+\]
+于是 \(p(\theta,s)\) 就是对满足该方程的直线做积分（即 Radon 变换的输出）。把 \(\theta\) 作为横轴、\(s\) 作为纵轴排成图，就是 sinogram。
 
-`p(θ,s) := -ln(I_out/I_in) = ∫_L μ ds`
+### 3) “点 \(\rightarrow\) 正弦线”的由来（最常考）
 
-这就是 CT 里“投影不是照片、而是线积分”的核心。
+若只看某个点 \((x_0,y_0)\) 的贡献，它在角度 \(\theta\) 下投影到
+\[
+s(\theta)=x_0\cos\theta+y_0\sin\theta,
+\]
+这是随 \(\theta\) 正弦变化的函数，因此在 sinogram 上画出一条“正弦轨迹”。
 
-### 2) Radon 变换：用一个方程描述“一条线”
+### 4) 简单反投影（BP）：把投影“沿原方向铺回去”
 
-用角度 `θ` 和偏移 `s` 表示直线：
+反投影（连续形式）的直观表达：
+\[
+\mu_{\mathrm{BP}}(x,y)=\int_0^{\pi} p\!\left(\theta,\,x\cos\theta+y\sin\theta\right)d\theta.
+\]
+BP 的问题：会把点“抹开”成模糊背景（低频偏强），边缘发糊、条纹明显。
 
-`x cosθ + y sinθ = s`
+### 5) 滤波反投影（FBP）：先滤波再反投影
 
-于是：
+FBP 结构（记住“先滤波再反投影”）：
+\[
+\mu_{\mathrm{FBP}}(x,y)
+=\int_0^{\pi}
+\bigl(p(\theta,\cdot)*h(\cdot)\bigr)\!\left(x\cos\theta+y\sin\theta\right)\,d\theta.
+\]
+其中 \(h\) 是滤波核；在频域中等价于对每个角度的投影做 ramp filter：
+\[
+P_{\mathrm{filt}}(\omega) = |\omega|\,P(\omega).
+\]
+直观理解：BP 低频过强 \(\Rightarrow\) 乘上 \(|\omega|\) 补偿高频 \(\Rightarrow\) 边缘更清晰。
 
-`p(θ,s) = ∫ μ(x,y) ds`（沿这条线积分）
+### 6) 角度数 \(N_{\mathrm{angles}}\)：为何角度少会出条纹
 
-把 `p(θ,s)` 对所有 `θ`、`s` 排成二维图，就是 **sinogram**。
-
-### 3) 为什么点会在 sinogram 上画出“正弦线”（必会题）
-
-若物体里只有一个“点”在 `(x0,y0)`（理想 δ 点），它对投影的贡献集中在
-
-`s = x0 cosθ + y0 sinθ`
-
-当 `θ` 改变时，右边是 `θ` 的正弦型函数，因此在 sinogram 上形成一条“正弦轨迹”。
-
-### 4) 简单反投影 BP：把每个角度的投影“铺回去”
-
-反投影的直观写法：
-
-`μ_BP(x,y) = ∫ p(θ, x cosθ + y sinθ) dθ`
-
-含义：对每个角度，把投影值沿对应直线均匀“涂回”图像；多角度叠加后形成重建。
-
-问题：BP 会让点扩散成 `1/r` 型模糊（低频偏强），所以边缘发糊、条纹明显。
-
-### 5) 滤波反投影 FBP：先滤波再反投影（补偿模糊）
-
-FBP 的结构（记住“先滤波再反投影”）：
-
-`μ_FBP(x,y) = ∫ ( p(θ,·) * h(·) )( x cosθ + y sinθ ) dθ`
-
-其中 `h` 是滤波核；在频域中等价于对每个角度的投影做：
-
-`P_filtered(ω) = |ω| · P(ω)`（ramp filter）
-
-直观：BP 让低频太强 → 乘上 `|ω|` 增强高频 → 边缘更清晰。
-
-### 6) 离散角度数 `N_angles`：为什么角度少会出条纹
-
-把连续积分 `∫ dθ` 换成有限和 `Σ`：
-
-`μ(x,y) ≈ Σ_{k=0}^{N-1} p(θ_k, x cosθ_k + y sinθ_k)`
-
-`N` 越小，角度采样越稀疏，等价于在角度域欠采样 → 重建出现条纹伪影（streak artifact）。
+把积分离散成求和：
+\[
+\mu(x,y)\approx \sum_{k=0}^{N-1} p\!\left(\theta_k,\,x\cos\theta_k+y\sin\theta_k\right),
+\qquad
+\theta_k=\frac{k\pi}{N}.
+\]
+当 \(N\) 变小，角度域欠采样 \(\Rightarrow\) 重建出现条纹伪影（streak artifacts）。
 
 ---
 
 ## ac_motor
 
-### 目标：看清“绕组轴固定，但合成矢量在转”
+### 目标：三相“stick 伸缩”叠加出旋转矢量
 
-### 1) 单相：只会“往返”
+### 1) 单相：端点只会往返
 
-教学近似：某一相绕组产生的磁场（在空间某点的矢量贡献）与电流成正比：
+教学近似：绕组在某观察点的磁场矢量与电流成正比，且方向沿绕组轴：
+\[
+\mathbf{B}_a(t)=k\,i_a(t)\,\hat{\mathbf{u}}_a,\qquad \hat{\mathbf{u}}_a=\text{常向量}.
+\]
+单相 \(i_a(t)=I_0\sin\omega t\)，因此 \(\mathbf{B}(t)\) 只在固定方向上正负变化 \(\Rightarrow\) 端点轨迹是一条线段（往返）。
 
-`B_a(t) = k · i_a(t) · u_a`
+### 2) 三相：合成磁场幅值近恒定且在转
 
-单相：`i_a(t) = I0 sin(ωt)`，且 `u_a` 固定 ⇒
-
-`B(t) = k I0 sin(ωt) u_a`
-
-所以端点在一条直线段上往返（不是圆）。
-
-### 2) 三相：三根“stick”叠加出旋转矢量
-
-三相电流（幅值相同、相差 120°）：
-
-`i_a = I0 sin(ωt)`  
-`i_b = I0 sin(ωt - 2π/3)`  
-`i_c = I0 sin(ωt + 2π/3)`
-
-绕组轴（空间方向）也相差 120°：
-
-`u_a = (1,0)`  
-`u_b = (cos120°, sin120°) = (-1/2, √3/2)`  
-`u_c = (cos240°, sin240°) = (-1/2,-√3/2)`
-
-合成磁场：
-
-`B = k( i_a u_a + i_b u_b + i_c u_c )`
-
-计算 x、y 分量（把三相“加起来”）：
-
-- `B_x = k( i_a - (i_b+i_c)/2 )`  
-  用恒等式 `sin(α-β)+sin(α+β)=2sinα cosβ`，得  
-  `i_b+i_c = 2 I0 sin(ωt) cos(2π/3) = - I0 sin(ωt)`  
-  所以 `B_x = k( I0 sin(ωt) + ½ I0 sin(ωt) ) = (3/2)k I0 sin(ωt)`
-
-- `B_y = k( (√3/2)(i_b - i_c) )`  
-  用 `sin(α-β)-sin(α+β) = -2cosα sinβ`，得  
-  `i_b-i_c = -2 I0 cos(ωt) sin(2π/3) = -√3 I0 cos(ωt)`  
-  所以 `B_y = k( (√3/2)(-√3 I0 cos(ωt)) ) = -(3/2)k I0 cos(ωt)`
-
-于是：
-
-`B(t) = (3/2)k I0 · ( sin(ωt), -cos(ωt) )`
-
-因此幅值恒定：
-
-`|B| = (3/2)k I0`（常数）
-
+三相电流（相差 \(120^\circ\)）：
+\[
+\begin{aligned}
+i_a &= I_0\sin\omega t,\\
+i_b &= I_0\sin(\omega t-2\pi/3),\\
+i_c &= I_0\sin(\omega t+2\pi/3).
+\end{aligned}
+\]
+绕组轴（空间方向也相差 \(120^\circ\)）：
+\[
+\hat{\mathbf{u}}_a=(1,0),\quad
+\hat{\mathbf{u}}_b=\bigl(\cos120^\circ,\sin120^\circ\bigr),\quad
+\hat{\mathbf{u}}_c=\bigl(\cos240^\circ,\sin240^\circ\bigr).
+\]
+合成：
+\[
+\mathbf{B}(t)=k\bigl(i_a\hat{\mathbf{u}}_a+i_b\hat{\mathbf{u}}_b+i_c\hat{\mathbf{u}}_c\bigr).
+\]
+利用三角恒等式可得到（关键结果）：
+\[
+B_x(t)=\frac{3}{2}kI_0\sin\omega t,\qquad
+B_y(t)=-\frac{3}{2}kI_0\cos\omega t.
+\]
+因此
+\[
+|\mathbf{B}(t)|=\sqrt{B_x^2+B_y^2}=\frac{3}{2}kI_0=\text{常数},
+\]
 端点轨迹为圆（旋转磁场）。
 
-> 记忆法：三相=“三根 stick 在各自轴上伸缩”，但合成端点匀速绕圈，且幅值近恒定。
+> 记忆法：三相时“绕组轴固定”，每相 stick 只在自己的轴上变长/变短，但合成矢量端点绕圈且幅值近恒定。
 
 ### 3) 单相 + 电容（两相近似）：椭圆与“接近圆”的条件
 
-简化为两正交分量：
-
-`B_x = k I0 sin(ωt)`  
-`B_y = k (r I0) sin(ωt - φ)`（`r` 为幅值比例，`φ` 为相移）
-
-参数方程一般是椭圆；当 `r≈1` 且 `φ≈90°` 时更接近圆。
+把主绕组与辅绕组近似成两正交分量：
+\[
+B_x = kI_0\sin\omega t,\qquad
+B_y = k(rI_0)\sin(\omega t-\varphi).
+\]
+一般为椭圆；当 \(r\approx 1\) 且 \(\varphi\approx 90^\circ\) 时更接近圆。
 
 ---
 
 ## rail_launcher
 
-### 目标：从 RLC 放电推到 `I(t)`，再推到 `F(t)∝I²` 与能量分配
+### 目标：从 RLC 放电得到 \(I(t)\)，再到 \(F(t)\propto I^2\) 与能量分配
 
-> 安全边界：仅讨论理想化电路/物理关系，不涉及任何现实可执行制造或操作。
+> 安全边界：仅讨论理想化电路/物理与能量观点，不涉及任何现实可执行制造或操作。
 
-### 1) 串联 RLC 放电的微分方程
+### 1) 串联 RLC 放电：标准二阶方程
 
-设电容初始电压 `V0`，回路电流 `i(t)`，电容电压 `V_C(t)`。
+KVL（无外加源）：
+\[
+L\frac{di}{dt}+Ri+V_C=0,
+\qquad
+i=-C\frac{dV_C}{dt}.
+\]
+消去 \(i\)：
+\[
+\frac{d^2V_C}{dt^2}+\frac{R}{L}\frac{dV_C}{dt}+\frac{1}{LC}V_C=0.
+\]
+定义
+\[
+\omega_0=\frac{1}{\sqrt{LC}},\qquad
+\alpha=\frac{R}{2L}.
+\]
 
-串联回路 KVL（无外加源）：
+### 2) 欠阻尼解（最常见、最直观）
 
-`L di/dt + R i + V_C = 0`
+当 \(\alpha<\omega_0\)，令 \(\omega_d=\sqrt{\omega_0^2-\alpha^2}\)，在初始条件 \(V_C(0)=V_0\)、\(i(0)=0\) 下：
+\[
+V_C(t)=V_0e^{-\alpha t}\left[\cos(\omega_dt)+\frac{\alpha}{\omega_d}\sin(\omega_dt)\right],
+\]
+\[
+i(t)=\frac{V_0}{L\omega_d}\,e^{-\alpha t}\sin(\omega_dt).
+\]
+结论：线性系统中 \(i(t)\propto V_0\)（加倍 \(V_0\) 电流整体加倍）。
 
-且 `i = -C dV_C/dt`（放电时电容电压下降，号记法不同不影响“形状”）。
+### 3) 教学近似：\(I^2\) 力与运动学
 
-消去 `i` 得到二阶方程：
+常用近似（能量法写法）：
+\[
+F(t)\approx \frac12 L' \,i(t)^2.
+\]
+于是
+\[
+a(t)=\frac{F(t)}{m},\quad
+v(t)=\int a(t)\,dt,\quad
+x(t)=\int v(t)\,dt,
+\]
+并可加入简化摩擦：\(a_{\mathrm{eff}}\approx F/m-\mu g\)（同时用 \(v\ge 0\) 夹紧体现损耗）。
 
-`d²V_C/dt² + (R/L) dV_C/dt + (1/LC) V_C = 0`
-
-定义：
-
-`ω0 = 1/√(LC)`（无阻尼固有角频率）  
-`α = R/(2L)`（阻尼系数）
-
-### 2) 欠阻尼解（最常见、也最直观）
-
-当 `α < ω0`，令 `ω_d = √(ω0² - α²)`：
-
-`V_C(t) = V0 e^{-αt} [ cos(ω_d t) + (α/ω_d) sin(ω_d t) ]`
-
-由 `i = -C dV_C/dt` 可得电流：
-
-`i(t) = (V0/(L ω_d)) e^{-αt} sin(ω_d t)`
-
-关键结论：
-
-- `i(t) ∝ V0`（线性系统）
-- 峰值电流随 `R` 增大而降低，随 `C`、`L` 改变而改变“快慢/振荡”
-
-### 3) “I² 力”近似与运动学积分
-
-教学近似（能量法常见写法）：
-
-`F(t) ≈ ½ · L' · i(t)²`
-
-其中 `L'` 是给定参数（电感随位置变化的“梯度”），此处不讨论结构来源。
-
-忽略其它力时：
-
-`a(t) = F(t)/m`
-
-因此：
-
-`v(t) = ∫ a(t) dt  ∝ ∫ i² dt`  
-`x(t) = ∫ v(t) dt`
-
-加入简化摩擦（库仑摩擦）可写成：
-
-`a_eff(t) ≈ F(t)/m - μ g`（并用 `v≥0` 夹紧，体现“损耗”）
-
-### 4) 能量观点（最不容易出错的检查方式）
+### 4) 能量观点（最稳的自检）
 
 初始电容能量：
-
-`E0 = ½ C V0²`
-
-随时间：
-
-- 电容能：`E_C = ½ C V_C²`
-- 电感能：`E_L = ½ L i²`
-- 电阻耗散（累积热）：`E_R(t) = ∫ i² R dt`
-- 动能：`E_K = ½ m v²`
-- 摩擦损失（简化）：`E_f ≈ μ m g x`
-
+\[
+E_0=\frac12 CV_0^2.
+\]
+各部分能量（随时间）：
+\[
+E_C=\frac12 C V_C^2,\quad
+E_L=\frac12 Li^2,\quad
+E_R(t)=\int_0^t i^2R\,dt,\quad
+E_K=\frac12 mv^2,\quad
+E_f\approx \mu m g x.
+\]
 在理想/近似范围内应满足：
+\[
+E_C+E_L+E_R+E_K+E_f\approx E_0.
+\]
 
-`E_C + E_L + E_R + E_K + E_f ≈ E0`
+### 5) 缩放律（课堂预测题好用）
 
-### 5) 重要缩放律（课堂预测题常用）
-
-因为 `i ∝ V0`，所以：
-
-`F ∝ i² ∝ V0²`
-
-在其它参数固定、且“时间尺度变化不太大”的范围内，
-`v`、`x` 的量级常呈现接近 `V0²` 的增长趋势（教学结论，用于理解“为何加倍电压提升很快”）。
+因为 \(i\propto V_0\)，所以
+\[
+F\propto i^2 \propto V_0^2.
+\]
+在其它参数不变的教学范围内，出口速度/位移的量级往往也随 \(V_0^2\) 明显增长（用于理解趋势）。
 
 ---
 
 ## mass_spec
 
-### 目标：推到 `r ∝ √(m/q) / B`，并理解“落点分离”
+### 目标：得到 \(r\propto \sqrt{m/q}/B\)，并理解“落点分离”
 
-### 1) 加速：`V_acc → v`
+### 1) 加速：\(V_{\mathrm{acc}}\rightarrow v\)
 
-单价正离子（`q=+e`）经加速电压 `V_acc`：
+\[
+qV_{\mathrm{acc}}=\frac12 mv^2
+\quad\Rightarrow\quad
+v=\sqrt{\frac{2qV_{\mathrm{acc}}}{m}}.
+\]
 
-`q V_acc = ½ m v²  ⇒  v = √( 2 q V_acc / m )`
+### 2) 匀强磁场偏转：\(B\rightarrow r\)
 
-### 2) 磁场偏转：`B → r`
+速度垂直于 \(\mathbf{B}\) 时，磁力提供向心力：
+\[
+|q|vB=\frac{mv^2}{r}
+\quad\Rightarrow\quad
+r=\frac{mv}{|q|B}.
+\]
+代入 \(v\)：
+\[
+r=\sqrt{\frac{2mV_{\mathrm{acc}}}{|q|B^2}}.
+\]
+结论（记住比例）：
+\[
+r\propto \frac{\sqrt{m/|q|}}{B},\qquad
+r\propto \sqrt{V_{\mathrm{acc}}},\qquad
+r\propto \frac{1}{B}.
+\]
 
-速度垂直于磁场时，洛伦兹力提供向心力：
+### 3) 速度选择器：\(v=E/B\)
 
-`|q| v B = m v² / r  ⇒  r = m v / (|q| B)`
+交叉场选速（理想化）：
+\[
+qE=qvB \quad\Rightarrow\quad v=\frac{E}{B}.
+\]
+进入偏转磁场后：
+\[
+r=\frac{mv}{|q|B}=\frac{mE}{|q|B^2}.
+\]
 
-代入 `v`：
+### 4) 探测屏落点（与页面几何一致）
 
-`r = √( 2 m V_acc / (|q| B²) )`
-
-结论（牢记）：
-
-- `r ∝ √(m/q)`
-- `r ∝ 1/B`
-- 在“仅加速模式”下 `r ∝ √V_acc`
-
-### 3) 速度选择器模式：`v = E/B`
-
-若先用交叉电场 `E` 与磁场 `B` 选速：
-
-平衡条件：`qE = qvB  ⇒  v = E/B`
-
-再进入偏转磁场：
-
-`r = m v / (|q| B) = mE / (|q| B²)`
-
-### 4) 探测屏落点（与本页面几何一致）
-
-设粒子从原点沿 +x 方向进入匀强 `B`，轨迹为半径 `r` 的圆弧，探测屏是竖直线 `x = x_det`。
-
-圆弧可参数化为：
-
-`x = r sinθ`  
-`y = r (1 - cosθ)`
-
-当到达屏幕 `x = x_det`：
-
-`sinθ = x_det / r`
-
-落点：
-
-`y_hit = r (1 - cosθ) = r [ 1 - √(1 - (x_det/r)² ) ]`
-
-因此 `r` 不同 ⇒ `y_hit` 不同 ⇒ 形成“分离”。
+粒子从原点沿 \(+x\) 进入磁场，圆弧参数式：
+\[
+x=r\sin\theta,\qquad
+y=r(1-\cos\theta).
+\]
+屏幕为 \(x=x_{\mathrm{det}}\)，则
+\[
+\sin\theta=\frac{x_{\mathrm{det}}}{r},
+\qquad
+y_{\mathrm{hit}}=r\left(1-\sqrt{1-(x_{\mathrm{det}}/r)^2}\right).
+\]
+因此不同 \(m/q\Rightarrow r\) 不同 \(\Rightarrow y_{\mathrm{hit}}\) 分离。
 
 ---
 
 ## electron_microscope
 
-### 目标：把“电压→波长”与“磁透镜→聚焦”串起来
+### 目标：把“电压 \(\rightarrow\) 波长”与“磁透镜 \(\rightarrow\) 聚焦”串起来
 
-### 1) 德布罗意波长：`V → λ`
+### 1) 德布罗意波长：\(V\rightarrow \lambda\)
 
 非相对论近似：
+\[
+p=\sqrt{2m_eeV},\qquad
+\lambda=\frac{h}{p}
+\quad\Rightarrow\quad
+\lambda(V)=\frac{h}{\sqrt{2m_eeV}}.
+\]
+结论：\(\lambda\propto 1/\sqrt{V}\)。
 
-动量 `p = √(2 m_e e V)`  
-德布罗意：`λ = h / p`
+### 2) 为什么“电压更高更难聚焦”（高中可接受的量级推导）
 
-合并：
+磁场只改变动量方向。横向动量改变量级 \(\Delta p_\perp\sim qBl\)（有效长度 \(l\)），纵向动量 \(p\sim \sqrt{V}\)，故偏转角量级
+\[
+\theta\sim \frac{\Delta p_\perp}{p}\propto \frac{B}{\sqrt{V}}.
+\]
+因此在同样线圈电流（同样 \(B\)）下，\(V\) 越大，束线越“硬”，聚焦更弱（焦距更长）。
 
-`λ(V) = h / √(2 m_e e V)`
+### 3) 薄透镜近似：一条最常用的“束线公式”
 
-结论（趋势）：
-
-- `λ ∝ 1/√V`（电压越高波长越短）
-
-### 2) 磁透镜“为什么能聚焦”（高中可接受的推导）
-
-磁场对运动电荷产生洛伦兹力：
-
-`F = q (v × B)`
-
-它不改变速度大小（理想情况下做功为 0），但改变速度方向（横向动量）。
-
-把“聚焦强度”理解为“单位横向位移带来的角度改变”：
-
-- 横向动量变化量级：`Δp_⊥ ~ q B l`（`l` 为有效作用长度）
-- 纵向动量：`p ~ m v ~ √V`
-- 于是偏转角量级：`θ ~ Δp_⊥/p ∝ (B l)/√V`
-
-因此同样线圈电流（同样 B），`V` 越大越难弯（聚焦变弱）。
-
-> 本仓库在可视化里用教学经验式：`1/f ∝ I_lens² / √V`（只保证趋势），用于让两张图联动。
-
-### 3) 薄透镜近似：一条“最常用的光线公式”
-
-把束线看成小角度光线，透镜在 `z=z_L`，屏在 `z=z_S`。
-
-薄透镜“角度跳变”：
-
-`θ_out = θ_in - y/f`
-
-其中 `y` 是穿过透镜处的横向偏离，`f` 为焦距（越小聚焦越强）。
-
-从源点（近似 `y=0`）发出不同入射角 `θ_in` 的光线：
-
-- 到透镜：`y_L = θ_in (z_L - z_0)`
-- 出透镜：`θ_out = θ_in - y_L/f`
-- 到屏：`y_S = y_L + θ_out (z_S - z_L)`
-
-屏上束斑大小由多条光线的 `y_S` 分布决定；调 `f`（通过 `I_lens`、`V`）会出现“最佳聚焦”附近的最小束斑。
+把束线视作小角度光线，透镜处横向坐标 \(y\)，入射角 \(\theta_{\mathrm{in}}\)。薄透镜角度跳变：
+\[
+\theta_{\mathrm{out}}=\theta_{\mathrm{in}}-\frac{y}{f}.
+\]
+焦距 \(f\) 越小聚焦越强；改变 \(f\) 会改变屏上束斑大小，并通常出现“最佳聚焦”附近的最小束斑。
 
 ---
 
 ## cyclotron
 
-### 目标：推到 `ω_c = |q|B/m`，并理解“共振/失谐”
+### 目标：得到 \(\omega_c=|q|B/m\)，理解“共振/失谐”
 
-### 1) 磁场让粒子绕圈：`B → ω_c`
+### 1) 回旋角频率：磁场 \(\rightarrow\) 绕圈
 
-速度垂直于磁场时：
+\[
+|q|vB=\frac{mv^2}{r}
+\quad\Rightarrow\quad
+\frac{v}{r}=\frac{|q|B}{m}=: \omega_c.
+\]
+非相对论下 \(\omega_c\) 与半径无关，是“固定 RF 也能一直加速”的关键。
 
-`|q| v B = m v² / r`
+### 2) 缝隙加速：相位决定加速还是减速
 
-两边除以 `mv` 得：
+若缝隙电压 \(V_{\mathrm{gap}}(t)=\hat V\sin(\omega_{\mathrm{rf}}t)\)，粒子第 \(n\) 次过缝隙时刻为 \(t_n\)，能量增量（教学量级）：
+\[
+\Delta K_n \approx q\,V_{\mathrm{gap}}(t_n).
+\]
+当 \(\omega_{\mathrm{rf}}\approx \omega_c\) 且相位选择合适，\(\Delta K_n\) 多为正，能量逐次累积。
 
-`|q|B/m = v/r = ω_c`
+### 3) 失谐：相位漂移导致“有时推有时拉”
 
-因此（非相对论）：
+若 \(\omega_{\mathrm{rf}}\ne \omega_c\)，到达相位 \(\phi_n=\omega_{\mathrm{rf}}t_n\) 会随 \(n\) 漂移，导致 \(\Delta K_n\) 符号与大小变化，平均加速变差甚至抵消。
 
-`ω_c = |q|B/m`  
-`f_c = ω_c/(2π)`
+### 4) 相对论效应（经典回旋加速器的限制）
 
-**关键点**：`ω_c` 与半径无关（这是回旋加速器能用固定 RF 的根本原因）。
-
-### 2) 缝隙加速：`V_gap(t_cross) → ΔK`
-
-RF 电压可写成：
-
-`V_gap(t) = V̂ sin(ω_rf t)`
-
-粒子每半圈穿过一次缝隙；若在第 n 次穿越时刻为 `t_n`，能量增量量级为：
-
-`ΔK_n ≈ q · V_gap(t_n)`
-
-若 `ω_rf` 与 `ω_c` 匹配，使 `t_n` 总能落在“加速相位”，则 `K` 会逐次累积，轨迹螺旋外扩。
-
-### 3) 失谐为何会“有时推有时拉”
-
-若 `ω_rf ≠ ω_c`，则每次到达缝隙的相位
-
-`φ_n = ω_rf t_n`
-
-会逐步漂移。于是 `V_gap(t_n)` 的符号与大小会改变：有时加速（`ΔK>0`），有时减速（`ΔK<0`），平均加速变差甚至抵消。
-
-### 4) 相对论效应（为何经典回旋加速器有上限）
-
-当速度接近光速时，动量 `p = γ m v`，回旋角频率变为：
-
-`ω_c = |q|B/(γm)`
-
-能量增加 ⇒ `γ` 增大 ⇒ `ω_c` 下降 ⇒ 即使起初匹配也会逐步失谐。
+能量升高使 \(\gamma\) 增大，回旋频率变为
+\[
+\omega_c=\frac{|q|B}{\gamma m},\qquad
+\gamma=1+\frac{K}{mc^2}.
+\]
+即使初始对准，也会逐步失谐。
 
 ---
 
 ## linac
 
-### 目标：推到“漂移管长度 `L_n ≈ v_n T/2`”
+### 目标：推到漂移管长度 \(L_n\approx v_nT/2\)
 
-### 1) 缝隙加速：相位决定加速还是减速
+### 1) 缝隙加速：相位同步
 
-把 RF 纵向电场写成（示意）：
-
-`E_z(t) = Ê cos(ωt)`
-
-若缝隙长度为 `g`，等效加速电压：
-
-`V_gap ≈ Ê g`
-
-粒子在第 n 次穿越缝隙时刻为 `t_n`，则能量增量（教学写法）：
-
-`ΔK_n ≈ q V_gap cos(ω t_n + φ_0)`
-
-因此必须“相位同步”：保证 `cos(...)` 大多为正且不太小。
+把 RF 场写成 \(E_z(t)=\hat E\cos(\omega t)\)。若缝隙长度为 \(g\)，等效电压近似
+\[
+V_{\mathrm{gap}}\approx \hat E\,g.
+\]
+粒子在第 \(n\) 次穿越缝隙时刻 \(t_n\) 的能量增量（教学写法）：
+\[
+\Delta K_n \approx qV_{\mathrm{gap}}\cos(\omega t_n+\phi_0).
+\]
+要持续加速，就要让 \(\cos(\cdot)\) 尽量保持为正且不太小。
 
 ### 2) 漂移管：让粒子“等半个周期再出来”
 
-漂移管内近似无场（不加速），目的：让粒子用时间对齐 RF 的相位翻转。
+漂移管内近似无场（不加速），作用是让粒子用时间对齐 RF 翻转。常取（\(\pi\) 模式直觉）：
+\[
+\Delta t_n \approx \frac{T}{2}=\frac{1}{2f}.
+\]
+若该段漂移的速度近似 \(v_n\)，则长度应满足：
+\[
+L_n\approx v_n\Delta t_n \approx v_n\frac{T}{2}.
+\]
+速度随能量升高而增大 \(\Rightarrow L_n\) 逐级变长。
 
-要让下一次穿缝隙仍然是“加速相位”，常取（π 模式直觉）：
+### 3) 固定长度为何会相位漂移
 
-`Δt_n ≈ T/2 = 1/(2f)`
-
-若第 n 段漂移时速度约为 `v_n`，则长度应满足：
-
-`L_n ≈ v_n · Δt_n ≈ v_n · T/2`
-
-随着能量升高，`v_n` 变大 ⇒ `L_n` 逐级变长（这就是漂移管“越往后越长”的来源）。
-
-### 3) 固定长度为什么会相位漂移
-
-若 `L_n` 固定，则实际漂移时间 `Δt_n = L / v_n` 会越来越小（因为 `v_n` 增大），
-导致到达相位 `ω t_n` 越来越偏离最优，从而出现加速变差甚至减速的情况。
+若 \(L_n\) 固定，则 \(\Delta t_n=L/v_n\) 会随 \(v_n\) 增大而变小，导致到达相位逐步偏离最佳值，出现加速变差甚至减速。
 
 ---
 
 ## transformer
 
-### 目标：从法拉第定律推到匝比，再连到功率因数
+### 目标：从法拉第定律得到匝比，再连到功率因数
 
-### 1) 匝比：`V_s/V_p = N_s/N_p`
+### 1) 匝比：\(V_s/V_p=N_s/N_p\)
 
-理想变压器假设：两线圈耦合到同一主磁通 `Φ(t)`，线圈电压由法拉第电磁感应给出：
+理想变压器假设：两线圈耦合到同一主磁通 \(\Phi(t)\)。由法拉第定律：
+\[
+v_p(t)=N_p\frac{d\Phi}{dt},\qquad
+v_s(t)=N_s\frac{d\Phi}{dt}.
+\]
+相除：
+\[
+\frac{v_s}{v_p}=\frac{N_s}{N_p}
+\quad\Rightarrow\quad
+\frac{V_{s,\mathrm{rms}}}{V_{p,\mathrm{rms}}}=\frac{N_s}{N_p}.
+\]
 
-`v_p(t) = N_p dΦ/dt`  
-`v_s(t) = N_s dΦ/dt`
+### 2) 电流比：由理想功率守恒得到
 
-相除得到（对任意时刻都成立）：
+忽略损耗：
+\[
+V_pI_p\approx V_sI_s
+\quad\Rightarrow\quad
+\frac{I_s}{I_p}\approx \frac{V_p}{V_s}\approx \frac{N_p}{N_s}.
+\]
 
-`v_s/v_p = N_s/N_p`
-
-因此对有效值也有：
-
-`V_s,rms / V_p,rms = N_s/N_p`
-
-### 2) 电流比：由“功率近似守恒”得到
-
-忽略损耗（理想）：
-
-`P_p ≈ P_s  ⇒  V_p I_p ≈ V_s I_s`
-
-又 `V_s/V_p = N_s/N_p`，因此：
-
-`I_p ≈ (V_s/V_p) I_s = (N_s/N_p) I_s`
-
-等价写成：
-
-`I_s/I_p ≈ N_p/N_s`
-
-> 记忆法：电压按匝数比放大，电流按匝数比反比缩小，功率近似不变。
-
-### 3) 负载为 RL：相量、阻抗与功率因数
+### 3) RL 负载：阻抗与功率因数
 
 负载阻抗：
-
-`Z = R + jωL`
-
-幅值：
-
-`|Z| = √(R² + (ωL)²)`
-
-电流滞后相位：
-
-`φ = arctan( ωL / R )`（RL 负载中电流滞后电压）
-
-有功功率：
-
-`P = V_rms I_rms cosφ`
-
-视在功率：
-
-`S = V_rms I_rms`
-
-无功功率：
-
-`Q = V_rms I_rms sinφ`
-
-功率因数：
-
-`cosφ = R/|Z|`
+\[
+Z=R+j\omega L,\qquad
+|Z|=\sqrt{R^2+(\omega L)^2}.
+\]
+相位滞后：
+\[
+\varphi=\arctan\!\left(\frac{\omega L}{R}\right),
+\qquad(\text{电流滞后电压 } \varphi).
+\]
+有功/视在/无功功率：
+\[
+P=VI\cos\varphi,\qquad
+S=VI,\qquad
+Q=VI\sin\varphi,\qquad
+\cos\varphi=\frac{R}{|Z|}.
+\]
 
 ---
 
 ## rlc_oscillation
 
-### 目标：一张图背下三件事：`ω0`、`α`、欠/临界/过阻尼
+### 目标：一套方程记住 \(\omega_0\)、\(\alpha\) 与三种阻尼
 
-### 1) 二阶方程（最标准写法）
+### 1) 标准二阶方程与参数
 
-串联 RLC 放电（与 M05 同源），电容电压满足：
-
-`d²V_C/dt² + (R/L) dV_C/dt + (1/LC) V_C = 0`
-
-定义：
-
-`ω0 = 1/√(LC)`  
-`α = R/(2L)`
-
+串联 RLC 放电（电容电压）：
+\[
+\frac{d^2V_C}{dt^2}+\frac{R}{L}\frac{dV_C}{dt}+\frac{1}{LC}V_C=0,
+\qquad
+\omega_0=\frac{1}{\sqrt{LC}},\quad
+\alpha=\frac{R}{2L}.
+\]
 分类：
+\[
+\alpha<\omega_0\ (\text{欠阻尼}),\quad
+\alpha=\omega_0\ (\text{临界阻尼}),\quad
+\alpha>\omega_0\ (\text{过阻尼}).
+\]
 
-- 欠阻尼：`α < ω0`（振荡衰减）
-- 临界阻尼：`α = ω0`
-- 过阻尼：`α > ω0`（不振荡，单调回零）
+### 2) 欠阻尼解（本仓库图像主要用它）
 
-### 2) 欠阻尼时的通用解（本仓库直接用它画图）
+令 \(\omega_d=\sqrt{\omega_0^2-\alpha^2}\)：
+\[
+V_C(t)=V_0e^{-\alpha t}\left[\cos(\omega_dt)+\frac{\alpha}{\omega_d}\sin(\omega_dt)\right],
+\]
+\[
+I(t)=\frac{V_0}{L\omega_d}\,e^{-\alpha t}\sin(\omega_dt).
+\]
 
-`ω_d = √(ω0² - α²)`
+### 3) Q 值（常用近似）
 
-`V_C(t) = V0 e^{-αt} [ cos(ω_d t) + (α/ω_d) sin(ω_d t) ]`
+\[
+Q\approx \frac{\omega_0L}{R}=\frac{1}{R}\sqrt{\frac{L}{C}}.
+\]
+Q 大 \(\Rightarrow\) 损耗相对小、衰减慢，但带宽更窄、对参数更敏感。
 
-`I(t) = (V0/(L ω_d)) e^{-αt} sin(ω_d t)`
+### 4) 能量交换与耗散（自检）
 
-### 3) Q 值（高中常用近似）
-
-`Q ≈ ω0 L / R = (1/R) √(L/C)`
-
-Q 大 ⇒ 损耗相对小 ⇒ 振荡衰减慢，但带宽窄、对参数更敏感。
-
-### 4) 能量交换与耗散（检验思路）
-
-`E_C = ½ C V_C²`  
-`E_L = ½ L I²`  
-`E_R(t) = ∫ I² R dt`
-
-理想情况下：`E_C + E_L + E_R ≈ ½ C V0²`。
+\[
+E_C=\frac12 CV_C^2,\quad
+E_L=\frac12 LI^2,\quad
+E_R(t)=\int_0^t I^2R\,dt,
+\quad
+E_C+E_L+E_R\approx \frac12 CV_0^2.
+\]
 
 ---
 
 ## wireless_power
 
-### 目标：用“阻抗矩阵”推到电流与效率曲线 η(f)
+### 目标：用阻抗矩阵得到 \(I_1,I_2\) 与效率 \(\eta(f)\)
 
-### 1) 两个谐振回路与互感
+### 1) 互感与 Q 值
 
-两线圈电感 `L1,L2`，电容 `C1,C2`，等效电阻 `R1,R2`，互感：
-
-`M = k √(L1 L2)`（`k` 为耦合系数，`0≤k≤1`）
-
-谐振角频率（各自）：
-
-`ω01 = 1/√(L1 C1)`  
-`ω02 = 1/√(L2 C2)`（可因 detune 偏离）
-
-Q 值定义（常用）：
-
-`Q ≈ ω0 L / R`
+互感用耦合系数表示：
+\[
+M=k\sqrt{L_1L_2},\qquad 0\le k\le 1.
+\]
+Q 值（常用定义）：
+\[
+Q\approx \frac{\omega_0L}{R}.
+\]
 
 ### 2) 频域方程（相量法）
 
-在角频率 `ω` 下，回路阻抗：
-
-`Z1 = R1 + jωL1 + 1/(jωC1)`  
-`Z2 = (R2 + R_L) + jωL2 + 1/(jωC2)`
-
-耦合项为 `jωM`。列方程：
-
-`Z1 I1 + jωM I2 = V_s`  
-`jωM I1 + Z2 I2 = 0`
-
-解得（背结构即可）：
-
-`I1 = V_s Z2 / (Z1 Z2 - (jωM)²)`  
-`I2 = -V_s (jωM) / (Z1 Z2 - (jωM)²)`
+各回路阻抗：
+\[
+Z_1=R_1+j\omega L_1+\frac{1}{j\omega C_1},\quad
+Z_2=(R_2+R_L)+j\omega L_2+\frac{1}{j\omega C_2}.
+\]
+耦合项为 \(j\omega M\)。列方程：
+\[
+Z_1I_1+j\omega MI_2=V_s,\qquad
+j\omega MI_1+Z_2I_2=0.
+\]
+解得：
+\[
+I_1=\frac{V_sZ_2}{Z_1Z_2-(j\omega M)^2},\qquad
+I_2=-\frac{V_s(j\omega M)}{Z_1Z_2-(j\omega M)^2}.
+\]
 
 ### 3) 功率与效率
 
-输入功率（正弦稳态）：
+\[
+P_{\mathrm{in}}=\frac12\Re\{V_s I_1^*\},\qquad
+P_L=\frac12 |I_2|^2R_L,\qquad
+\eta=\frac{P_L}{P_{\mathrm{in}}}.
+\]
 
-`P_in = ½ Re{ V_s I1* }`
+### 4) 双峰的来源（强耦合的两个正常模）
 
-负载功率：
-
-`P_L = ½ |I2|² R_L`
-
-效率：
-
-`η = P_L / P_in`
-
-这就是页面上 η(f) 的来源。
-
-### 4) “双峰/频响分裂”的根源（强耦合两个正常模）
-
-当耦合较强且损耗较小（Q 大），系统更像两个耦合振子，会出现两个正常模频率，
-表现为 η(f) 双峰；耦合越强，分裂越明显。
+当 \(k\) 较大且损耗较小（Q 大），系统更像两个耦合振子，出现两个正常模频率，效率曲线可能分裂成双峰。
 
 ---
 
 ## hall_effect
 
-### 目标：从受力平衡推到 `V_H = I B /(n q t)`
+### 目标：从受力平衡得到 \(V_H=\dfrac{IB}{nqt}\)，并用符号判定载流子类型
 
-### 1) 洛伦兹力把载流子“挤到一侧”
+### 1) 受力平衡：磁力 \(\leftrightarrow\) 电场力
 
-载流子漂移速度 `v_d`，在 `B` 中受磁力：
+载流子漂移速度 \(v_d\)（沿电流方向），在磁场 \(B\) 中受磁力 \(qv_dB\)。堆积产生霍尔电场 \(E_H\)，平衡：
+\[
+qE_H=qv_dB \quad\Rightarrow\quad E_H=v_dB.
+\]
 
-`F_B = q v_d B`（方向由 `v×B` 决定）
-
-侧向堆积会形成霍尔电场 `E_H`，电场力：
-
-`F_E = q E_H`
-
-平衡条件（稳态）：
-
-`q E_H = q v_d B  ⇒  E_H = v_d B`
-
-### 2) 把 `v_d` 换成可测的电流 `I`
+### 2) 用电流 \(I\) 消去 \(v_d\)
 
 电流密度：
-
-`J = n q v_d`
-
-若样品厚度 `t`，宽度 `w`，截面积 `A = w t`，电流：
-
-`I = J A = n q v_d w t`
-
-所以：
-
-`v_d = I / (n q w t)`
-
-代回 `E_H = v_d B`：
-
-`E_H = (I B)/(n q w t)`
-
-霍尔电压（跨宽度 w）：
-
-`V_H = E_H w = I B /(n q t)`
-
-符号由 `q` 决定：电子（`q<0`）则 `V_H` 取负（方向反转）。
+\[
+J=nqv_d.
+\]
+若样品宽 \(w\)、厚 \(t\)，截面积 \(A=wt\)，电流：
+\[
+I=JA=nqv_dwt
+\quad\Rightarrow\quad
+v_d=\frac{I}{nqwt}.
+\]
+代回 \(E_H=v_dB\) 并乘以宽度 \(w\) 得霍尔电压：
+\[
+V_H=E_Hw=\frac{IB}{nqt}.
+\]
+符号由 \(q\) 决定：电子 \(q<0\Rightarrow V_H<0\)，空穴 \(q>0\Rightarrow V_H>0\)。
 
 ### 3) 霍尔系数
 
-`R_H := E_H/(J B) = 1/(n q)`
-
-测出 `R_H` 的符号可判断主要载流子类型（电子/空穴）。
+\[
+R_H:=\frac{E_H}{JB}=\frac{1}{nq}.
+\]
+测得 \(R_H\) 的符号即可判断主要载流子类型。
 
 ---
 
 ## speaker_microphone
 
-### 目标：把“电-机互逆”写成一套可复用的方程
+### 目标：用一套方程说明“扬声器/麦克风互逆”（\(BL\cdot I\) 与 \(BL\cdot v\)）
 
-### 1) 机械部分：受迫振动（统一写法）
+### 1) 机械受迫振动（统一写法）
 
-简化为单自由度振子：
+单自由度模型：
+\[
+m\ddot x+b\dot x+kx=F(t).
+\]
+正弦稳态（相量）：
+\[
+X=\frac{F}{Z_m},\qquad
+Z_m = k-m\omega^2+jb\omega.
+\]
 
-`m x¨ + b x˙ + k x = F(t)`
+### 2) 扬声器：\(V_{\mathrm{in}}\rightarrow I\rightarrow F=BL\,I\rightarrow x\)
 
-对正弦稳态 `F(t)=Re{F̃ e^{jωt}}`，位移相量：
+线圈电阻抗：
+\[
+Z_e=R_{\mathrm{coil}}+j\omega L_{\mathrm{coil}},
+\qquad
+I=\frac{V_{\mathrm{in}}}{Z_e}.
+\]
+力因子（互逆常数） \(BL\)：
+\[
+F=(BL)\,I
+\quad\Rightarrow\quad
+X=\frac{BL}{Z_m}\cdot\frac{V_{\mathrm{in}}}{Z_e}.
+\]
+因此：电感 \(L_{\mathrm{coil}}\) 改变电流相位；机械共振使 \(|Z_m|\) 变小，从而位移变大。
 
-`X̃ = F̃ / Z_m`
+### 3) 麦克风：\(F_{\mathrm{ext}}\rightarrow x\rightarrow v\rightarrow e=BL\,v\)
 
-其中机械“阻抗”（更准确说是动态刚度）：
-
-`Z_m = k - mω² + j b ω`
-
-幅值：
-
-`|X̃| = |F̃| / |Z_m|`
-
-共振频率（弱阻尼近似）：
-
-`f0 ≈ (1/2π) √(k/m)`
-
-### 2) 扬声器：`V_in → I → F=BL·I → x`
-
-线圈电阻电感组成电阻抗：
-
-`Z_e = R_coil + jω L_coil`
-
-电流相量：
-
-`Ĩ = Ṽ_in / Z_e`
-
-力因子（互逆常数）`BL`：
-
-`F̃ = (BL) Ĩ`
-
-于是：
-
-`X̃ = (BL) Ṽ_in / ( Z_e · Z_m )`
-
-这解释了：电感会让电流滞后（相位变化），机械共振会让 `|Z_m|` 变小从而位移变大。
-
-### 3) 麦克风：`F_ext → x → v → e=BL·v`
-
-外界等效力：
-
-`F̃_ext → X̃ = F̃_ext / Z_m`
-
-速度相量：
-
-`Ṽ_mech = jω X̃`
-
+外力驱动：
+\[
+X=\frac{F_{\mathrm{ext}}}{Z_m},\qquad
+v=j\omega X.
+\]
 动圈切割磁场产生感应电动势（互逆）：
-
-`ẽ = (BL) · Ṽ_mech = jω (BL) X̃`
-
-更完整的电路输出应再乘以分压（负载、线圈阻抗），但本仓库为突出互逆关系，教学近似取：
-
-`V_out ≈ e`
-
-因此输出幅值：
-
-`|V_out| ∝ ω · BL · |X|`
+\[
+e=(BL)\,v=j\omega(BL)\,X.
+\]
+更完整的电路输出还应考虑线圈阻抗与负载分压；教学演示中常取 \(V_{\mathrm{out}}\approx e\) 来突出互逆关系与频率趋势：\(|e|\propto \omega\)。
 
 ### 4) 互逆性一句话
 
-同一个 `BL` 同时出现在：
-
-- 扬声器受力：`F = BL · I`
-- 麦克风感应：`e = BL · v`
-
-它的量纲可记作：`N/A`，也等价于 `V·s/m`（因为 `e/v` 的单位是 `V / (m/s)`）。
+同一个 \(BL\) 同时出现在
+\[
+F=BL\cdot I,\qquad
+e=BL\cdot v,
+\]
+所以改变 \(BL\) 会同时影响“受力能力”和“感应电压能力”。
 
 ---
 
 ## induction_heating
 
-### 目标：从法拉第定律走到集肤深度 `δ ≈ √(2ρ/(ωμ))`，再理解功率趋势
+### 目标：从法拉第定律得到集肤深度 \(\delta\approx\sqrt{\dfrac{2\rho}{\omega\mu}}\)，再理解功率趋势
 
-### 1) 感应电场的“频率放大效应”
+### 1) 频率为何“放大”感应效应
 
 法拉第定律：
+\[
+\oint \mathbf{E}\cdot d\mathbf{l}=-\frac{d\Phi}{dt}.
+\]
+若 \(\Phi(t)=\hat\Phi\sin\omega t\)，则
+\[
+\left|\frac{d\Phi}{dt}\right|_{\mathrm{peak}}=\omega\hat\Phi,
+\]
+因此感应电场的量级随 \(\omega\) 增大而增大（趋势记忆：\(E_{\mathrm{ind}}\propto \omega B\)）。
 
-`∮ E · dl = - dΦ/dt`
+### 2) 涡流与焦耳热（局部形式）
 
-若磁通 `Φ` 近似随时间正弦变化：`Φ = Φ̂ sin(ωt)`，则：
+电导率 \(\sigma=1/\rho\)：
+\[
+\mathbf{J}=\sigma\mathbf{E},\qquad
+p=\mathbf{J}\cdot\mathbf{E}=\sigma E^2=J^2\rho.
+\]
+在几何相近的教学近似下，常见趋势：
+\[
+P \propto \frac{\omega^2B^2}{\rho}
+\quad(\text{忽略集肤}).
+\]
 
-`|dΦ/dt|_peak = ω Φ̂`
+### 3) 集肤深度（结果会用即可）
 
-因此感应电场（量级）随 `ω` 增大而增大：`E_ind ∝ ωB`（趋势记忆）。
-
-### 2) 涡流与焦耳热
-
-导体电导率 `σ = 1/ρ`，欧姆定律（局部形式）：
-
-`J = σ E`
-
-焦耳热功率密度：
-
-`p = J·E = σ E² = J² ρ`
-
-因此（在几何相近时）总体功率常呈现：
-
-`P ∝ (ω² B²)/ρ`（趋势，忽略集肤）
-
-### 3) 集肤深度 δ（结果要会用、会判趋势）
-
-在高频下，电磁量在导体内部满足“扩散型方程”，解呈指数衰减：
-
-`E(x) ~ E0 e^{-x/δ}`
-
-集肤深度（标准结果）：
-
-`δ = √( 2ρ / (ω μ) )`
-
+高频下场量向导体内部指数衰减 \(E(x)\sim E_0e^{-x/\delta}\)。集肤深度的标准结果：
+\[
+\delta=\sqrt{\frac{2\rho}{\omega\mu}},
+\qquad
+\mu\approx \mu_0\mu_r.
+\]
 趋势：
+\[
+\delta\propto \frac{1}{\sqrt f},\qquad
+\delta\propto \sqrt{\rho}.
+\]
 
-- `δ ∝ 1/√f`：频率越高，电流越集中在表面
-- `δ ∝ √ρ`：电阻率越大，渗透更深
+### 4) 厚度 \(t\) 与“有效体积”
 
-### 4) 厚度 t 与“有效体积”
-
-当材料厚度 `t` 与 `δ` 比较：
-
-- `t ≫ δ`：主要表面一层在发热，增厚对功率提升不明显
-- `t ~ δ`：更大体积参与，功率对厚度更敏感
-
-本仓库用一个教学指标表达这点（趋势用）：
-
-`P_rel ~ (ω² B²/ρ) · (1 - e^{-t/δ})`
-
-它把“驱动强度”与“参与体积”两个因素合在一起，便于课堂讨论。
+当 \(t\gg\delta\) 时，主要是表面一层发热，继续增厚收益不明显；当 \(t\sim\delta\) 时，更多体积参与。
+教学上可用一个“参与因子”表达：
+\[
+\text{fill}\approx 1-e^{-t/\delta},
+\qquad
+P_{\mathrm{rel}}\sim \frac{\omega^2B^2}{\rho}\cdot(1-e^{-t/\delta}).
+\]
 
