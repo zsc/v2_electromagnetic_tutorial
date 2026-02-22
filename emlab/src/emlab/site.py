@@ -670,7 +670,7 @@ TEMPLATE = Template(
         {% for m in modules %}
         <section class="module" id="section-{{m.id}}">
           <h2>{{ m.title }}</h2>
-          <div class="intro">{{ m.intro_html|safe }}</div>
+          <div class="intro{% if mathjax_inline %} tex2jax_process{% endif %}">{{ m.intro_html|safe }}</div>
           <div class="grid">
             <div class="card controls">
               <h3>参数</h3>
@@ -692,11 +692,11 @@ TEMPLATE = Template(
             </div>
           </div>
           <div class="below">
-            <div class="card">
+            <div class="card{% if mathjax_inline %} tex2jax_process{% endif %}">
               <h3>常见误区</h3>
               {{ m.pitfalls_html|safe }}
             </div>
-            <div class="card">
+            <div class="card{% if mathjax_inline %} tex2jax_process{% endif %}">
               <h3>引导问题</h3>
               {{ m.questions_html|safe }}
             </div>

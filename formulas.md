@@ -27,7 +27,7 @@
 
 ## crt_scope
 
-### 目标：推到并记住 \(y \propto \dfrac{V_{\mathrm{def}}}{V_{\mathrm{acc}}}\)
+### 目标：推导并记住 \(y \propto \dfrac{V_{\mathrm{def}}}{V_{\mathrm{acc}}}\)
 
 ### 1) 加速段：\(V_{\mathrm{acc}}\rightarrow v\)
 
@@ -432,7 +432,7 @@ p=\sqrt{2m_eeV},\qquad
 
 ## linac
 
-### 目标：推到漂移管长度 \(L_n\approx v_nT/2\)
+### 目标：推导漂移管长度 \(L_n\approx v_nT/2\)
 
 ### 1) 缝隙加速：相位同步
 
@@ -755,4 +755,3 @@ P \propto \frac{\omega^2B^2}{\rho}
 \qquad
 P_{\mathrm{rel}}\sim \frac{\omega^2B^2}{\rho}\cdot(1-e^{-t/\delta}).
 \]
-
